@@ -5,7 +5,7 @@ import matplotlib
 import math
 
 import numpy as np
-from main import rk4
+
 
 
 def rk4(r, t, h, w_alpha, w_beta, w_gamma, w_delta):
@@ -18,26 +18,26 @@ def rk4(r, t, h, w_alpha, w_beta, w_gamma, w_delta):
 
 
 def f(r, t, w_alpha, w_beta, w_gamma, w_delta):
-    alpha = w_alpha/100
-    beta = w_beta/100
-    gamma = w_gamma/100
-    sigma = w_delta/100
+    alpha = w_alpha
+    beta = w_beta
+    gamma = w_gamma
+    delta = w_delta
     x, y = r[0], r[1]
     fxd = x * (alpha - beta * y)
-    fyd = -y * (gamma - sigma * x)
+    fyd = -y * (gamma - delta * x)
     return np.array([fxd, fyd], float)
 
 def updateGraph():
     global currentGraph
     plt.clf()
     h = 0.001  # edited
-    tpoints = np.arange(0, 30, h)  # edited
+    tpoints = np.arange(0, 100, h)
     xpoints, ypoints = [], []
-    r = np.array([2, 2], float)
+    r = np.array([10, 5], float)
     for t in tpoints:
-        xpoints.append(r[0])  # edited
-        ypoints.append(r[1])  # edited
-        r += rk4(r, t, h, w_alpha.get(), w_beta.get(), w_gamma.get(), w_delta.get())  # edited; no need for input f
+        xpoints.append(r[0])
+        ypoints.append(r[1])
+        r += rk4(r, t, h, w_alpha.get(), w_beta.get(), w_gamma.get(), w_delta.get())
     plt.plot(tpoints, xpoints)
     plt.plot(tpoints, ypoints)
     fig.canvas.draw()
@@ -52,36 +52,52 @@ fig = plt.figure(1)
 canvas = FigureCanvasTkAgg(fig, master=root)
 plot_widget = canvas.get_tk_widget()
 
-h=0.001                               #edited
-tpoints = np.arange(0, 30, h)         #edited
+h=0.001
+tpoints = np.arange(0, 100, h)
 xpoints, ypoints  = [], []
-r = np.array([2, 2], float)
+r = np.array([10, 5], float)
 for t in tpoints:
-        xpoints.append(r[0])          #edited
-        ypoints.append(r[1])          #edited
-        r += rk4(r, t, h, 100, 50, 50, 200)             #edited; no need for input f
+        xpoints.append(r[0])
+        ypoints.append(r[1])
+        r += rk4(r, t, h, 0.3, 0.28, 0.7, 0.3)
 plt.plot(tpoints, xpoints)
 plt.plot(tpoints, ypoints)
 
 # Add the plot to the tkinter widget
 plot_widget.pack()
 # Create a tkinter button at the bottom of the window and link it with the updateGraph function
-tk.Label(root, text="Alpha").pack()
-w_alpha = tk.Scale(root, from_=0, to=100, orient=tk.HORIZONTAL)
-w_alpha.pack()
 
-tk.Label(root, text="Beta").pack()
-w_beta = tk.Scale(root, from_=0, to=100, orient=tk.HORIZONTAL)
-w_beta.pack()
+f_top_alpha = tk.Frame(root)
+l_1 = tk.Label(f_top_alpha, text="Alpha")
+w_alpha = tk.Scale(f_top_alpha, from_=0, to=1, resolution=0.01, orient=tk.HORIZONTAL)
+w_alpha.set(0.3)
+f_top_alpha.pack()
+l_1.pack(side=tk.LEFT)
+w_alpha.pack(side=tk.LEFT)
 
+f_top_beta= tk.Frame(root)
+l_2 = tk.Label(f_top_beta, text="Beta")
+w_beta = tk.Scale(f_top_beta, from_=0, to=1, resolution=0.01, orient=tk.HORIZONTAL)
+w_beta.set(0.28)
+f_top_beta.pack()
+l_2.pack(side=tk.LEFT)
+w_beta.pack(side=tk.LEFT)
 
-tk.Label(root, text="Gamma").pack()
-w_gamma = tk.Scale(root, from_=0, to=100, orient=tk.HORIZONTAL)
-w_gamma.pack()
+f_top_gamma = tk.Frame(root)
+l_3 = tk.Label(f_top_gamma, text="Gamma")
+w_gamma = tk.Scale(f_top_gamma, from_=0, to=1, resolution=0.01, orient=tk.HORIZONTAL)
+w_gamma.set(0.7)
+f_top_gamma.pack()
+l_3.pack(side=tk.LEFT)
+w_gamma.pack(side=tk.LEFT)
 
-tk.Label(root, text="Delta").pack()
-w_delta = tk.Scale(root, from_=0, to=100, orient=tk.HORIZONTAL)
-w_delta.pack()
+f_top_delta = tk.Frame(root)
+l_4 = tk.Label(f_top_delta, text="Delta")
+w_delta= tk.Scale(f_top_delta, from_=0, to=1, resolution=0.01, orient=tk.HORIZONTAL)
+w_delta.set(0.3)
+f_top_delta.pack()
+l_4.pack(side=tk.LEFT)
+w_delta.pack(side=tk.LEFT)
 
 tk.Button(root,text="Update",command=updateGraph).pack()
 
