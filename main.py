@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import QSlider, QLabel
 from PyQt5.QtCore import Qt
 
 # TODO: размер графиков при изменении
+# TODO: добавить минимальную величину в слайдеры
 
 if QtCore.qVersion() >= "5.":
     from matplotlib.backends.backend_qt5agg import (
@@ -37,9 +38,19 @@ def rk4(r, t, h, w_alpha, w_beta, w_gamma, w_delta, c, d):
     return (k1 + 2 * k2 + 2 * k3 + k4) / 6
 
 
+def rk2(r, t, h, w_alpha, w_beta, w_gamma, w_delta, c, d):
+    k1 = h * f(r, t,  w_alpha, w_beta, w_gamma, w_delta, c, d)
+    k2 = h * f(r + k1, t + h,  w_alpha, w_beta, w_gamma, w_delta, c, d)
+    return 0.5 * (k1 + k2)
+
+
+def euler(r, t, h, w_alpha, w_beta, w_gamma, w_delta, c, d):
+    return f(r, t, w_alpha, w_beta, w_gamma, w_delta, c, d) * h
+
+
 class ApplicationWindow(QtWidgets.QMainWindow):
-    _startX = 10
-    _startY = 5
+    startX = 10
+    startY = 5
     xpoints = []
     ypoints = []
 
@@ -48,8 +59,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     gamma = 0.7
     delta = 0.3
 
-    c = 0.05
-    d = 0
+    c = 0.5
+    d = 0.05
 
     h = 0.01
 
@@ -83,23 +94,29 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         layoutLabels.addWidget(self.balanceY)
         layout.addLayout(layoutLabels)
 
+        combo =  QtWidgets.QComboBox(self)
+        combo.addItems(["rk4", "rk2", "euler"])
+        combo.activated[str].connect(self.changeMethod)
+        layout.addWidget(combo)
+
         layoutStart = QtWidgets.QVBoxLayout(self._main)
         lbl = QLabel(self)
         lbl.setText("Preys")
         mySlider = QSlider(Qt.Vertical, self)
         mySlider.setMaximum(30)
-        mySlider.setValue(10)
+        mySlider.setValue(self.startX)
         mySlider.valueChanged.connect(self.changeValueX)
         layoutStart.addWidget(lbl)
         layoutStart.addWidget(mySlider)
         layoutAnimals.addLayout(layoutStart)
 
         layoutStart = QtWidgets.QVBoxLayout(self._main)
+
         lbl = QLabel(self)
         lbl.setText("Predatos")
         mySlider = QSlider(Qt.Vertical, self)
         mySlider.setMaximum(30)
-        mySlider.setValue(5)
+        mySlider.setValue(self.startY)
         mySlider.valueChanged.connect(self.changeValueY)
         layoutStart.addWidget(lbl)
         layoutStart.addWidget(mySlider)
@@ -115,6 +132,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         layoutStart.addWidget(mySlider)
         layoutLetters.addLayout(layoutStart)
 
+
         layoutStart = QtWidgets.QHBoxLayout(self._main)
         lbl = QLabel(self)
         lbl.setText("beta")
@@ -127,20 +145,20 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
         layoutStart = QtWidgets.QHBoxLayout(self._main)
         lbl = QLabel(self)
-        lbl.setText("gamma")
+        lbl.setText("delta")
         mySlider = QSlider(Qt.Horizontal, self)
-        mySlider.setValue(70)
-        mySlider.valueChanged.connect(self.changeValueGamma)
+        mySlider.setValue(30)
+        mySlider.valueChanged.connect(self.changeValueDelta)
         layoutStart.addWidget(lbl)
         layoutStart.addWidget(mySlider)
         layoutLetters.addLayout(layoutStart)
 
         layoutStart = QtWidgets.QHBoxLayout(self._main)
         lbl = QLabel(self)
-        lbl.setText("delta")
+        lbl.setText("gamma")
         mySlider = QSlider(Qt.Horizontal, self)
-        mySlider.setValue(30)
-        mySlider.valueChanged.connect(self.changeValueDelta)
+        mySlider.setValue(70)
+        mySlider.valueChanged.connect(self.changeValueGamma)
         layoutStart.addWidget(lbl)
         layoutStart.addWidget(mySlider)
         layoutLetters.addLayout(layoutStart)
@@ -175,20 +193,24 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self._static_ax = static_canvas.figure.subplots()
         tpoints = np.arange(0, 100, self.h)
         xpoints, ypoints = [], []
-        r = np.array([self._startX, self._startY], float)
+        r = np.array([self.startX, self.startY], float)
 
         for t in tpoints:
             xpoints.append(r[0])
             ypoints.append(r[1])
             r += rk4(r, t, self.h, self.alpha, self.beta, self.delta, self.gamma, self.c, self.d)
 
-        self._line, = self._static_ax.plot(xpoints, ypoints, "k-")
+        self._line = self._static_ax.plot(xpoints, ypoints, "k-")
+
+
 
         self._dynamic_ax = dynamic_canvas.figure.subplots()
 
+        self.set_balance_starts()
+
         tpoints = np.arange(0, 100, self.h)
         xpoints, ypoints = [], []
-        r = np.array([self._startX, self._startY], float)
+        r = np.array([self.startX, self.startY], float)
         for t in tpoints:
             xpoints.append(r[0])
             ypoints.append(r[1])
@@ -198,16 +220,17 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ypoints = ypoints
 
 
+
         self._line_x, = self._dynamic_ax.plot(tpoints, xpoints)
         self._line_y, = self._dynamic_ax.plot(tpoints, ypoints)
         self._timer = dynamic_canvas.new_timer(50)
 
         self._time = 1
-        self._timer.add_callback(self._update_canvas)
+        self._timer.add_callback(self.updateCanvas)
         self._timer.start()
 
 
-    def _update_canvas(self):
+    def updateCanvas(self):
         tpoints = np.arange(0, 100, self.h)
 
         for i in range(50):
@@ -226,21 +249,16 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self._line_x.figure.canvas.draw()
         self._line_y.figure.canvas.draw()
 
-
-
-
     def restart(self):
-
         self._timer.stop()
-
         tpoints = np.arange(0, 100, self.h)
         self.xpoints, self.ypoints = [], []
-        r = np.array([self._startX, self._startY], float)
+        r = np.array([self.startX, self.startY], float)
 
         for t in tpoints:
             self.xpoints.append(r[0])
             self.ypoints.append(r[1])
-            r += rk4(r, t, self.h, self.alpha, self.beta, self.gamma, self.delta, self.c, self.d)
+            r += self.cur_method(r, t, self.h, self.alpha, self.beta, self.gamma, self.delta, self.c, self.d)
 
         self._line.set_data(self.xpoints, self.ypoints)
         self._line.figure.canvas.draw()
@@ -255,11 +273,11 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
 
     def changeValueX(self, value):
-        self._startX = value
+        self.startX = value
         self.restart()
 
     def changeValueY(self, value):
-        self._startY = value
+        self.startY = value
         self.restart()
 
     def changeValueAlpha(self, value):
@@ -292,6 +310,19 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.d = float(value - 100) / 100
         self.restart()
         self.set_balance_starts()
+
+    def changeMethod(self, text):
+
+        self._timer.stop()
+
+        if (text == "rk4"):
+            self.cur_method = rk4
+        elif (text == "rk2"):
+            self.cur_method = rk2
+        else:
+            self.cur_method = euler
+
+        self.restart()
 
 
 qapp = QtWidgets.QApplication.instance()
