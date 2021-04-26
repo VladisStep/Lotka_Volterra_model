@@ -2,13 +2,10 @@ import sys
 import time
 
 import numpy as np
+from PyQt5.QtWidgets import QInputDialog, QMessageBox
 
-from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtWidgets import QSlider, QLabel
-from PyQt5.QtCore import Qt
-
-# TODO: размер графиков при изменении
-# TODO: добавить минимальную величину в слайдеры
+import matplotlib.pyplot as plt
+from matplotlib.backends.qt_compat import QtCore, QtWidgets
 
 if QtCore.qVersion() >= "5.":
     from matplotlib.backends.backend_qt5agg import (
@@ -17,35 +14,6 @@ else:
     from matplotlib.backends.backend_qt4agg import (
         FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.figure import Figure
-
-
-def f(r, t, w_alpha, w_beta, w_gamma, w_delta, c, d):
-    alpha = w_alpha
-    beta = w_beta
-    gamma = w_gamma
-    delta = w_delta
-    x, y = r[0], r[1]
-    fxd = x * (alpha - beta * y) + c * x
-    fyd = -y * (gamma - delta * x) + d * y
-    return np.array([fxd, fyd], float)
-
-
-def rk4(r, t, h, w_alpha, w_beta, w_gamma, w_delta, c, d):
-    k1 = h * f(r, t, w_alpha, w_beta, w_gamma, w_delta, c, d)
-    k2 = h * f(r + 0.5 * k1, t + 0.5 * h, w_alpha, w_beta, w_gamma, w_delta, c, d)
-    k3 = h * f(r + 0.5 * k2, t + 0.5 * h, w_alpha, w_beta, w_gamma, w_delta, c, d)
-    k4 = h * f(r + k3, t + h, w_alpha, w_beta, w_gamma, w_delta, c, d)
-    return (k1 + 2 * k2 + 2 * k3 + k4) / 6
-
-
-def rk2(r, t, h, w_alpha, w_beta, w_gamma, w_delta, c, d):
-    k1 = h * f(r, t,  w_alpha, w_beta, w_gamma, w_delta, c, d)
-    k2 = h * f(r + k1, t + h,  w_alpha, w_beta, w_gamma, w_delta, c, d)
-    return 0.5 * (k1 + k2)
-
-
-def euler(r, t, h, w_alpha, w_beta, w_gamma, w_delta, c, d):
-    return f(r, t, w_alpha, w_beta, w_gamma, w_delta, c, d) * h
 
 
 class ApplicationWindow(QtWidgets.QMainWindow):
@@ -59,11 +27,11 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     gamma = 0.7
     delta = 0.3
 
-    c = 0.5
-    d = 0.05
+    methods = [rk4, rk2, euler]
+
+    t = 100.0
 
     h = 0.01
-
 
 
     def __init__(self):
@@ -72,265 +40,202 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(self._main)
         layout = QtWidgets.QVBoxLayout(self._main)
 
-        static_canvas = FigureCanvas(Figure(figsize=(5, 3)))
-        layout.addWidget(static_canvas)
-        self.addToolBar(NavigationToolbar(static_canvas, self))
+        # static_canvas = FigureCanvas(Figure(figsize=(5, 3)))
+        # layout.addWidget(static_canvas)
+        # # self.addToolBar(NavigationToolbar(static_canvas, self))
+        #
+        #
+        #
+        #
+        # dynamic_canvas = FigureCanvas(Figure(figsize=(5, 3)))
+        # layout.addWidget(dynamic_canvas)
+        # # self.addToolBar(QtCore.Qt.BottomToolBarArea,
+        # #                 NavigationToolbar(dynamic_canvas, self))
 
-        dynamic_canvas = FigureCanvas(Figure(figsize=(5, 3)))
 
-        layout.addWidget(dynamic_canvas)
+        layoutPreysAndPredators = QtWidgets.QHBoxLayout(self._main)
 
-        layoutAnimalsAndLetters = QtWidgets.QHBoxLayout(self._main)
-
-        layoutAnimals = QtWidgets.QHBoxLayout(self._main)
-        layoutLetters = QtWidgets.QVBoxLayout(self._main)
-
-        layoutLabels = QtWidgets.QHBoxLayout(self._main)
-        self.balanceX = QLabel(self._main)
-        self.balanceX.setText("X")
-        layoutLabels.addWidget(self.balanceX)
-        self.balanceY = QLabel(self._main)
-        self.balanceY.setText("Y")
-        layoutLabels.addWidget(self.balanceY)
-        layout.addLayout(layoutLabels)
-
-        combo =  QtWidgets.QComboBox(self)
-        combo.addItems(["rk4", "rk2", "euler"])
-        combo.activated[str].connect(self.changeMethod)
-        layout.addWidget(combo)
-
-        layoutStart = QtWidgets.QVBoxLayout(self._main)
-        lbl = QLabel(self)
+        #-Preys----------------------------------------------------
+        layoutTextBox = QtWidgets.QVBoxLayout(self._main)
+        lbl = QtWidgets.QLabel(self)
         lbl.setText("Preys")
-        mySlider = QSlider(Qt.Vertical, self)
-        mySlider.setMaximum(30)
-        mySlider.setValue(self.startX)
-        mySlider.valueChanged.connect(self.changeValueX)
-        layoutStart.addWidget(lbl)
-        layoutStart.addWidget(mySlider)
-        layoutAnimals.addLayout(layoutStart)
+        self.textBoxPreys = QtWidgets.QLineEdit()
+        self.textBoxPreys.setText(str(self.startX))
+        layoutTextBox.addWidget(lbl)
+        layoutTextBox.addWidget(self.textBoxPreys)
+        layoutPreysAndPredators.addLayout(layoutTextBox)
 
-        layoutStart = QtWidgets.QVBoxLayout(self._main)
+        #-Predators------------------------------------------------
+        layoutTextBox = QtWidgets.QVBoxLayout(self._main)
+        lbl = QtWidgets.QLabel(self)
+        lbl.setText("Predators")
+        self.textBoxPredators = QtWidgets.QLineEdit()
+        self.textBoxPredators.setText(str(self.startY))
+        layoutTextBox.addWidget(lbl)
+        layoutTextBox.addWidget(self.textBoxPredators)
+        layoutPreysAndPredators.addLayout(layoutTextBox)
 
-        lbl = QLabel(self)
-        lbl.setText("Predatos")
-        mySlider = QSlider(Qt.Vertical, self)
-        mySlider.setMaximum(30)
-        mySlider.setValue(self.startY)
-        mySlider.valueChanged.connect(self.changeValueY)
-        layoutStart.addWidget(lbl)
-        layoutStart.addWidget(mySlider)
-        layoutAnimals.addLayout(layoutStart)
+        layout.addLayout(layoutPreysAndPredators)
 
-        layoutStart= QtWidgets.QHBoxLayout(self._main)
-        lbl = QLabel(self)
-        lbl.setText("alpha")
-        mySlider = QSlider(Qt.Horizontal, self)
-        mySlider.setValue(30)
-        mySlider.valueChanged.connect(self.changeValueAlpha)
-        layoutStart.addWidget(lbl)
-        layoutStart.addWidget(mySlider)
-        layoutLetters.addLayout(layoutStart)
+        layoutCoef = QtWidgets.QHBoxLayout(self._main)
 
+        #-alpha----------------------------------------------------
+        layoutTextBox = QtWidgets.QVBoxLayout(self._main)
+        lbl = QtWidgets.QLabel(self)
+        lbl.setText("Alpha")
+        self.textBoxAlpha = QtWidgets.QLineEdit()
+        self.textBoxAlpha.setText(str(self.alpha))
+        layoutTextBox.addWidget(lbl)
+        layoutTextBox.addWidget(self.textBoxAlpha)
+        layoutCoef.addLayout(layoutTextBox)
 
-        layoutStart = QtWidgets.QHBoxLayout(self._main)
-        lbl = QLabel(self)
-        lbl.setText("beta")
-        mySlider = QSlider(Qt.Horizontal, self)
-        mySlider.setValue(28)
-        mySlider.valueChanged.connect(self.changeValueBeta)
-        layoutStart.addWidget(lbl)
-        layoutStart.addWidget(mySlider)
-        layoutLetters.addLayout(layoutStart)
+        #-beta-----------------------------------------------------
+        layoutTextBox = QtWidgets.QVBoxLayout(self._main)
+        lbl = QtWidgets.QLabel(self)
+        lbl.setText("Beta")
+        self.textBoxBeta = QtWidgets.QLineEdit()
+        self.textBoxBeta.setText(str(self.beta))
+        layoutTextBox.addWidget(lbl)
+        layoutTextBox.addWidget(self.textBoxBeta)
+        layoutCoef.addLayout(layoutTextBox)
 
-        layoutStart = QtWidgets.QHBoxLayout(self._main)
-        lbl = QLabel(self)
-        lbl.setText("delta")
-        mySlider = QSlider(Qt.Horizontal, self)
-        mySlider.setValue(30)
-        mySlider.valueChanged.connect(self.changeValueDelta)
-        layoutStart.addWidget(lbl)
-        layoutStart.addWidget(mySlider)
-        layoutLetters.addLayout(layoutStart)
+        #-gamma-----------------------------------------------------
+        layoutTextBox = QtWidgets.QVBoxLayout(self._main)
+        lbl = QtWidgets.QLabel(self)
+        lbl.setText("Gamma")
+        self.textBoxGamma = QtWidgets.QLineEdit()
+        self.textBoxGamma.setText(str(self.gamma))
+        layoutTextBox.addWidget(lbl)
+        layoutTextBox.addWidget(self.textBoxGamma)
+        layoutCoef.addLayout(layoutTextBox)
 
-        layoutStart = QtWidgets.QHBoxLayout(self._main)
-        lbl = QLabel(self)
-        lbl.setText("gamma")
-        mySlider = QSlider(Qt.Horizontal, self)
-        mySlider.setValue(70)
-        mySlider.valueChanged.connect(self.changeValueGamma)
-        layoutStart.addWidget(lbl)
-        layoutStart.addWidget(mySlider)
-        layoutLetters.addLayout(layoutStart)
+        #-delta-----------------------------------------------------
+        layoutTextBox = QtWidgets.QVBoxLayout(self._main)
+        lbl = QtWidgets.QLabel(self)
+        lbl.setText("Delta")
+        self.textBoxDelta = QtWidgets.QLineEdit()
+        self.textBoxDelta.setText(str(self.delta))
+        layoutTextBox.addWidget(lbl)
+        layoutTextBox.addWidget(self.textBoxDelta)
+        layoutCoef.addLayout(layoutTextBox)
 
-        layoutAnimalsAndLetters.addLayout(layoutAnimals)
-        layoutAnimalsAndLetters.addLayout(layoutLetters)
+        layout.addLayout(layoutCoef)
 
-        layout.addLayout(layoutAnimalsAndLetters)
-
-        layoutStart = QtWidgets.QHBoxLayout(self._main)
-        lbl = QLabel(self)
-        lbl.setText("C")
-        mySlider = QSlider(Qt.Horizontal, self)
-        mySlider.setMaximum(200)
-        mySlider.setValue(int(self.c * 100 + 100))
-        mySlider.valueChanged.connect(self.changeValueC)
-        layoutStart.addWidget(lbl)
-        layoutStart.addWidget(mySlider)
-        layout.addLayout(layoutStart)
-
-        layoutStart = QtWidgets.QHBoxLayout(self._main)
-        lbl = QLabel(self)
-        lbl.setText("D")
-        mySlider = QSlider(Qt.Horizontal, self)
-        mySlider.setMaximum(200)
-        mySlider.setValue(int(self.d * 100 + 100))
-        mySlider.valueChanged.connect(self.changeValueD)
-        layoutStart.addWidget(lbl)
-        layoutStart.addWidget(mySlider)
-        layout.addLayout(layoutStart)
-
-        self._static_ax = static_canvas.figure.subplots()
-        tpoints = np.arange(0, 100, self.h)
-        xpoints, ypoints = [], []
-        r = np.array([self.startX, self.startY], float)
-
-        for t in tpoints:
-            xpoints.append(r[0])
-            ypoints.append(r[1])
-            r += rk4(r, t, self.h, self.alpha, self.beta, self.delta, self.gamma, self.c, self.d)
-
-        self._line = self._static_ax.plot(xpoints, ypoints, "k-")
+        #-t---------------------------------------------------------
+        layoutTextBox = QtWidgets.QVBoxLayout(self._main)
+        lbl = QtWidgets.QLabel(self)
+        lbl.setText("Time")
+        self.textBoxTime = QtWidgets.QLineEdit()
+        self.textBoxTime.setText(str(self.t))
+        layoutTextBox.addWidget(lbl)
+        layoutTextBox.addWidget(self.textBoxTime)
+        layout.addLayout(layoutTextBox)
 
 
+        self.btn = QtWidgets.QPushButton("Enter")
+        self.btn.clicked.connect(self.doGraphs)
+        layout.addWidget(self.btn)
 
-        self._dynamic_ax = dynamic_canvas.figure.subplots()
+        # self._static_ax = static_canvas.figure.subplots()
+        # t = np.linspace(0, 10, 501)
+        # self._static_ax.plot(t, np.tan(t), ".")
+        #
+        # self._dynamic_ax = dynamic_canvas.figure.subplots()
+        # t = np.linspace(0, 10, 101)
+        # # Set up a Line2D.
+        # self._line, = self._dynamic_ax.plot(t, np.sin(t + time.time()))
+        # self._timer = dynamic_canvas.new_timer(50)
+        # self._timer.add_callback(self._update_canvas)
+        # self._timer.start()
 
-        self.set_balance_starts()
-
-        tpoints = np.arange(0, 100, self.h)
-        xpoints, ypoints = [], []
-        r = np.array([self.startX, self.startY], float)
-        for t in tpoints:
-            xpoints.append(r[0])
-            ypoints.append(r[1])
-            r += rk4(r, t, self.h, self.alpha, self.beta, self.gamma, self.delta, self.c, self.d)
-
-        self.xpoints = xpoints
-        self.ypoints = ypoints
-
-
-
-        self._line_x, = self._dynamic_ax.plot(tpoints, xpoints)
-        self._line_y, = self._dynamic_ax.plot(tpoints, ypoints)
-        self._timer = dynamic_canvas.new_timer(50)
-
-        self._time = 1
-        self._timer.add_callback(self.updateCanvas)
-        self._timer.start()
-
-
-    def updateCanvas(self):
-        tpoints = np.arange(0, 100, self.h)
-
-        for i in range(50):
-            self.ypoints.pop(0)
-            self.xpoints.pop(0)
-            r = np.asarray([self.xpoints[len(self.xpoints) - 1], self.ypoints[len(self.ypoints) - 1]])
-            r += rk4(r, 100 + (self._time + i) * self.h, self.h, self.alpha, self.beta, self.gamma, self.delta, self.c, self.d)
-            self.xpoints.append(r[0])
-            self.ypoints.append(r[1])
-
-        self._time += 5
-
-        self._line_x.set_data(np.arange(0, 100, self.h), self.xpoints)
-        self._line_y.set_data(np.arange(0, 100, self.h), self.ypoints)
-
-        self._line_x.figure.canvas.draw()
-        self._line_y.figure.canvas.draw()
-
-    def restart(self):
-        self._timer.stop()
-        tpoints = np.arange(0, 100, self.h)
-        self.xpoints, self.ypoints = [], []
-        r = np.array([self.startX, self.startY], float)
-
-        for t in tpoints:
-            self.xpoints.append(r[0])
-            self.ypoints.append(r[1])
-            r += self.cur_method(r, t, self.h, self.alpha, self.beta, self.gamma, self.delta, self.c, self.d)
-
-        self._line.set_data(self.xpoints, self.ypoints)
+    def _update_canvas(self):
+        t = np.linspace(0, 10, 101)
+        # Shift the sinusoid as a function of time.
+        self._line.set_data(t, np.sin(t + time.time()))
         self._line.figure.canvas.draw()
 
-        self._timer.start()
+    def doGraphs(self):
+        try:
+            self.startX = float(self.textBoxPreys.text())
+        except Exception:
+            QMessageBox.about(self, 'Error', 'Количиство жертв должно быть числом')
+            pass
 
-    def set_balance_starts(self):
-        balance_x = (self.gamma - self.d)/self.delta
-        self.balanceX.setText("Balanced X: " + str(round(balance_x, 2)))
-        balance_y = (self.alpha + self.c)/self.beta
-        self.balanceY.setText("Balanced Y: " + str(round(balance_y, 2)))
+        try:
+            self.startY = float(self.textBoxPredators.text())
+        except Exception:
+            QMessageBox.about(self, 'Error', 'Количиство хищников должно быть числом')
+            pass
+
+        try:
+            alphaTest = float(self.textBoxAlpha.text())
+            if alphaTest < 0.0 or alphaTest > 1.0:
+                QMessageBox.about(self, 'Error', 'Альфа должнa быть в диапазоне от 0 до 1')
+            else:
+                self.alpha = alphaTest
+        except Exception:
+            QMessageBox.about(self, 'Error', 'Альфа должнa быть числом')
+            pass
+        try:
+            betaTest = float(self.textBoxBeta.text())
+            if betaTest < 0.0 or betaTest > 1.0:
+                QMessageBox.about(self, 'Error', 'Бета должнa быть в диапазоне от 0 до 1')
+            else:
+                self.beta = betaTest
+        except Exception:
+            QMessageBox.about(self, 'Error', 'Бета должнa быть числом')
+            pass
+        try:
+            gammaTest = float(self.textBoxGamma.text())
+            if gammaTest < 0.0 or gammaTest > 1.0:
+                QMessageBox.about(self, 'Error', 'Гамма должнa быть в диапазоне от 0 до 1')
+            else:
+                self.gamma = gammaTest
+        except Exception:
+            QMessageBox.about(self, 'Error', 'Гамма должнa быть числом')
+            pass
+        try:
+            deltaTest = float(self.textBoxDelta.text())
+            if deltaTest < 0.0 or deltaTest > 1.0:
+                QMessageBox.about(self, 'Error', 'Дельта должнa быть в диапазоне от 0 до 1')
+            else:
+                self.delta = deltaTest
+        except Exception:
+            QMessageBox.about(self, 'Error', 'Дельта должнa быть числом')
+            pass
+
+        try:
+            timeTest = float(self.textBoxTime.text())
+            if timeTest <= 0.0:
+                QMessageBox.about(self, 'Error', 'Время должно быть больше 0')
+            else:
+                self.t = timeTest
+        except Exception:
+            QMessageBox.about(self, 'Error', 'Время должно быть числом')
+            pass
+
+        r = np.array([self.startX, self.startY])
+        draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, rk4, "rk4")
+        r = np.array([self.startX, self.startY])
+        draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, rk2, "rk2")
+        r = np.array([self.startX, self.startY])
+        draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, euler, "euler")
+        r = np.array([self.startX, self.startY])
+        draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, reverse_euler, "reverse_euler")
+
+        # print(self.startX, self.startY, self.alpha, self.beta, self.gamma, self.delta, self.t)
 
 
-    def changeValueX(self, value):
-        self.startX = value
-        self.restart()
 
-    def changeValueY(self, value):
-        self.startY = value
-        self.restart()
+if __name__ == "__main__":
+    # Check whether there is already a running QApplication (e.g., if running
+    # from an IDE).
+    qapp = QtWidgets.QApplication.instance()
+    if not qapp:
+        qapp = QtWidgets.QApplication(sys.argv)
 
-    def changeValueAlpha(self, value):
-        self.alpha = float(value)/100
-        self.restart()
-        self.set_balance_starts()
-
-    def changeValueBeta(self, value):
-        self.beta = float(value)/100
-        self.restart()
-        self.set_balance_starts()
-
-    def changeValueGamma(self, value):
-        self.gamma= float(value)/100
-        self.restart()
-        self.set_balance_starts()
-
-    def changeValueDelta(self, value):
-        self.delta = float(value)/100
-        self.restart()
-        self.set_balance_starts()
-
-    def changeValueC(self, value):
-        self.c = float(value - 100) / 100
-        print(self.c)
-        self.restart()
-        self.set_balance_starts()
-
-    def changeValueD(self, value):
-        self.d = float(value - 100) / 100
-        self.restart()
-        self.set_balance_starts()
-
-    def changeMethod(self, text):
-
-        self._timer.stop()
-
-        if (text == "rk4"):
-            self.cur_method = rk4
-        elif (text == "rk2"):
-            self.cur_method = rk2
-        else:
-            self.cur_method = euler
-
-        self.restart()
-
-
-qapp = QtWidgets.QApplication.instance()
-if not qapp:
-    qapp = QtWidgets.QApplication(sys.argv)
-
-app = ApplicationWindow()
-app.show()
-app.activateWindow()
-app.raise_()
-qapp.exec_()
+    app = ApplicationWindow()
+    app.show()
+    app.activateWindow()
+    app.raise_()
+    qapp.exec_()
