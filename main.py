@@ -1,3 +1,4 @@
+import math
 import sys
 import time
 
@@ -14,6 +15,81 @@ else:
     from matplotlib.backends.backend_qt4agg import (
         FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.figure import Figure
+
+
+def reverse_euler(r, t, h, alpha, beta, gamma, delta):
+    x, y = r[0], r[1]
+    a = beta * h + gamma * beta * h * h
+    b = 1 - alpha * h - beta * h * y + gamma * h - gamma * h * h * alpha - h * delta * x
+    c = -y + alpha * h * y
+    d = b * b - 4 * a * c
+    if d < 0:
+        print("Отрицательный дискриминант")
+    y1 = (-b + math.sqrt(d))/(2 * a)
+    y2 = (-b - math.sqrt(d))/(2 * a)
+
+    y_res = 0
+
+    if y1 >= 0:
+        y_res = y1
+        # print(y1, y2, a, b, c, d, x, y, r)
+    elif y2 >= 0:
+        y_res = y2
+        # print(y1, y2, a, b, c, d, x, y, r)
+    else:
+        print("Отрицательные решения обратным методом Эйлера", y1, y2, a, b, c, d, x, y, r)
+
+    x_res = x/(1 - alpha * h + beta * h * y_res)
+
+    return np.array([x_res, y_res])
+
+
+def f(r, t, w_alpha, w_beta, w_gamma, w_delta):
+    alpha = w_alpha
+    beta = w_beta
+    gamma = w_gamma
+    delta = w_delta
+    x, y = r[0], r[1]
+    fxd = x * (alpha - beta * y)
+    fyd = -y * (gamma - delta * x)
+    return np.array([fxd, fyd], float)
+
+
+def rk4(r, t, h, w_alpha, w_beta, w_gamma, w_delta):
+    k1 = h * f(r, t, w_alpha, w_beta, w_gamma, w_delta)
+    k2 = h * f(r + 0.5 * k1, t + 0.5 * h, w_alpha, w_beta, w_gamma, w_delta)
+    k3 = h * f(r + 0.5 * k2, t + 0.5 * h, w_alpha, w_beta, w_gamma, w_delta)
+    k4 = h * f(r + k3, t + h, w_alpha, w_beta, w_gamma, w_delta)
+    return (k1 + 2 * k2 + 2 * k3 + k4) / 6
+
+
+def rk2(r, t, h, w_alpha, w_beta, w_gamma, w_delta):
+    k1 = h * f(r, t,  w_alpha, w_beta, w_gamma, w_delta)
+    k2 = h * f(r + k1, t + h,  w_alpha, w_beta, w_gamma, w_delta)
+    return 0.5 * (k1 + k2)
+
+
+def euler(r, t, h, w_alpha, w_beta, w_gamma, w_delta):
+    return f(r, t, w_alpha, w_beta, w_gamma, w_delta) * h
+
+
+def draw_plot(r, t_max, h, alpha, beta, gamma, delta, method, name):
+    t_points = np.arange(0, t_max, h)
+    x_points, y_points = [], []
+
+    for t in t_points:
+        x_points.append(r[0])
+        y_points.append(r[1])
+        r += method(r, t, h, alpha, beta, gamma, delta)
+
+    plt.plot(t_points, x_points, '-', t_points, y_points, '-')
+    plt.savefig('./two_graphs/' + name + '.png')
+    plt.clf()
+
+    plt.plot(x_points, y_points, '-')
+    plt.savefig('./circles/' + name + '.png')
+    plt.clf()
+    plt.show()
 
 
 class ApplicationWindow(QtWidgets.QMainWindow):
