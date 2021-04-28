@@ -44,6 +44,68 @@ def reverse_euler(r, t, h, alpha, beta, gamma, delta):
     return np.array([x_res, y_res])
 
 
+def reverse_rk2(r, t, h, alpha, beta, gamma, delta):
+    x, y = r[0], r[1]
+    a = -beta * (h/2)**2 - gamma * beta * (h/2)**3 + delta * beta * x * (h/2)**3 - delta * (h/2)**3 * beta * x
+    b = -1 + alpha * (h/2) - beta * (h/2) * y - beta * (h/2)**2 * gamma * y - gamma * (h/2) + \
+        gamma * alpha * (h/2)**2 - gamma * (h/2)**2 * beta * y + beta * delta * (h/2)**2 * x * y + \
+        delta * x * (h/2) - alpha * (h/2)**2 * delta * x + beta * (h/2)**2 * x * y * delta - \
+        delta * (h/2)**2 * y * beta * x + delta * (h/2)**2 * alpha * x - delta * (h/2)**2 * beta * x * y
+    c = - gamma * y + alpha * (h/2) * gamma * y - beta * (h/2) * y**2 * gamma + delta * x * y - \
+        alpha * (h/2) * delta * x * y + beta * (h/2) * delta * x * y**2 + delta * (h/2) * y * alpha * x - \
+        delta * (h/2) * y**2 * beta * x
+
+    ky1, ky2 = quadratic_resolve(a, b, c)
+    ky_res = 0
+    y_res = 0
+
+    y1 = y + h * ky1
+    y2 = y + h * ky2
+
+    if y1 >= 0:
+        ky_res = ky1
+        y_res = y1
+    elif y2 >= 0:
+        ky_res = ky2
+        y_res = y2
+    else:
+        print("Оба у отрицательные в обратном рк2")
+
+    kx_res = (alpha * x - beta * x * y - beta * x * (h/2) * ky_res)/(1 - alpha * (h/2) + beta * (h/2) * y + beta * (h/2)**2 * ky_res)
+    x_res = x + h * kx_res
+
+    return np.array([x_res, y_res])
+
+
+def quadratic_resolve(a, b, c):
+    d = b * b - 4 * a * c
+    if d < 0:
+        print("Отрицательный дискриминант")
+    x1 = (-b + math.sqrt(d)) / (2 * a)
+    x2 = (-b - math.sqrt(d)) / (2 * a)
+
+    return x1, x2
+
+
+def f_for_Newton(y_for_Newton,a, b, c):
+
+    return a * (y_for_Newton ** 2) + b*y_for_Newton + c
+
+def f_shtrih_for_Newton(y_for_Newton,a, b, c):
+
+    return a * y_for_Newton + b
+
+def Newton_method(r, a, b, c):
+    y_0 = r[1]
+
+    for _ in range(100):
+        y_0 = y_0 - f_for_Newton(y_0, a, b, c)/f_shtrih_for_Newton(y_0, a, b, c)
+
+    print('Newton: y_0 =', y_0, 'res: f(y_0) =', a*y_0**2 + b*y_0 + c)
+
+    return y_0
+
+
 def f(r, t, w_alpha, w_beta, w_gamma, w_delta):
     alpha = w_alpha
     beta = w_beta
@@ -60,32 +122,42 @@ def rk4(r, t, h, w_alpha, w_beta, w_gamma, w_delta):
     k2 = h * f(r + 0.5 * k1, t + 0.5 * h, w_alpha, w_beta, w_gamma, w_delta)
     k3 = h * f(r + 0.5 * k2, t + 0.5 * h, w_alpha, w_beta, w_gamma, w_delta)
     k4 = h * f(r + k3, t + h, w_alpha, w_beta, w_gamma, w_delta)
-    return (k1 + 2 * k2 + 2 * k3 + k4) / 6
+    return r + (k1 + 2 * k2 + 2 * k3 + k4) / 6
 
 
 def rk2(r, t, h, w_alpha, w_beta, w_gamma, w_delta):
     k1 = h * f(r, t,  w_alpha, w_beta, w_gamma, w_delta)
     k2 = h * f(r + k1, t + h,  w_alpha, w_beta, w_gamma, w_delta)
-    return 0.5 * (k1 + k2)
+    return r + 0.5 * (k1 + k2)
 
 
 def euler(r, t, h, w_alpha, w_beta, w_gamma, w_delta):
     return f(r, t, w_alpha, w_beta, w_gamma, w_delta) * h
 
 
-def draw_plot(r, t_max, h, alpha, beta, gamma, delta, method, name):
+
+def doDots(r, t_max, h, alpha, beta, gamma, delta, method, name):
     t_points = np.arange(0, t_max, h)
     x_points, y_points = [], []
 
     for t in t_points:
         x_points.append(r[0])
         y_points.append(r[1])
-        r += method(r, t, h, alpha, beta, gamma, delta)
+        r = method(r, t, h, alpha, beta, gamma, delta)
 
+    return x_points, y_points, t_points
+
+
+def draw_plot(r, t_max, h, alpha, beta, gamma, delta, method, name):
+
+    x_points, y_points, t_points = doDots(r, t_max, h, alpha, beta, gamma, delta, method, name)
+
+    plt.grid()
     plt.plot(t_points, x_points, '-', t_points, y_points, '-')
     plt.savefig('./two_graphs/' + name + '.png')
     plt.clf()
 
+    plt.grid()
     plt.plot(x_points, y_points, '-')
     plt.savefig('./circles/' + name + '.png')
     plt.clf()
@@ -127,6 +199,17 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         # layout.addWidget(dynamic_canvas)
         # # self.addToolBar(QtCore.Qt.BottomToolBarArea,
         # #                 NavigationToolbar(dynamic_canvas, self))
+
+        layoutLabels= QtWidgets.QHBoxLayout(self._main)
+
+        self.balanceX = QtWidgets.QLabel(self._main)
+        layoutLabels.addWidget(self.balanceX)
+        self.balanceY = QtWidgets.QLabel(self._main)
+        layoutLabels.addWidget(self.balanceY)
+
+        self.set_balance()
+
+        layout.addLayout(layoutLabels)
 
 
         layoutPreysAndPredators = QtWidgets.QHBoxLayout(self._main)
@@ -197,6 +280,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
         layout.addLayout(layoutCoef)
 
+        layoutTimeAndH = QtWidgets.QHBoxLayout(self._main)
+
         #-t---------------------------------------------------------
         layoutTextBox = QtWidgets.QVBoxLayout(self._main)
         lbl = QtWidgets.QLabel(self)
@@ -205,12 +290,27 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.textBoxTime.setText(str(self.t))
         layoutTextBox.addWidget(lbl)
         layoutTextBox.addWidget(self.textBoxTime)
-        layout.addLayout(layoutTextBox)
+        layoutTimeAndH.addLayout(layoutTextBox)
+
+        #-h---------------------------------------------------------
+        layoutTextBox = QtWidgets.QVBoxLayout(self._main)
+        lbl = QtWidgets.QLabel(self)
+        lbl.setText("h")
+        self.textBoxH = QtWidgets.QLineEdit()
+        self.textBoxH.setText(str(self.h))
+        layoutTextBox.addWidget(lbl)
+        layoutTextBox.addWidget(self.textBoxH)
+        layoutTimeAndH.addLayout(layoutTextBox)
+
+        layout.addLayout(layoutTimeAndH)
 
 
-        self.btn = QtWidgets.QPushButton("Enter")
+        layoutButtons = QtWidgets.QHBoxLayout(self._main)
+        self.btn = QtWidgets.QPushButton("Print graphs")
         self.btn.clicked.connect(self.doGraphs)
-        layout.addWidget(self.btn)
+        layoutButtons.addWidget(self.btn)
+
+        layout.addLayout(layoutButtons)
 
         # self._static_ax = static_canvas.figure.subplots()
         # t = np.linspace(0, 10, 501)
@@ -230,7 +330,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self._line.set_data(t, np.sin(t + time.time()))
         self._line.figure.canvas.draw()
 
-    def doGraphs(self):
+    def changeParams(self):
         try:
             self.startX = float(self.textBoxPreys.text())
         except Exception:
@@ -289,6 +389,36 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         except Exception:
             QMessageBox.about(self, 'Error', 'Время должно быть числом')
             pass
+        try:
+            hTest = float(self.textBoxH.text())
+            if hTest <= 0.0:
+                QMessageBox.about(self, 'Error', 'Шаг должен быть больше 0')
+            else:
+                self.h = hTest
+        except Exception:
+            QMessageBox.about(self, 'Error', 'Шаг должен  быть числом')
+            pass
+
+
+    def printGraphs(self):
+        print('print')
+
+        # self.changeParams()
+        # r = np.array([self.startX, self.startY])
+        # doDots(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, euler, "euler")
+
+    def set_balance(self):
+        balance_x = self.gamma/self.delta
+        balance_y = self.alpha/self.beta
+
+        self.balanceX.setText("X = " + str(balance_x))
+        self.balanceY.setText("Y = " + str(balance_y))
+
+
+    def doGraphs(self):
+        self.changeParams()
+        self.set_balance()
+
 
         r = np.array([self.startX, self.startY])
         draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, rk4, "rk4")
