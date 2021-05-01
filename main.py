@@ -147,13 +147,21 @@ def doDots(r, t_max, h, alpha, beta, gamma, delta, method, name):
 
     return x_points, y_points, t_points
 
+def analytical(r, t_points, alpha, beta, gamma, delta):
+    x = r[0]
+    y = r[1]
+    w = math.sqrt(alpha * gamma)
+    A = x
+    B = (alpha * x - beta * x * y)/w
+    return A * np.cos(w * t_points) + B * np.sin(w * t_points) + x
+
 
 def draw_plot(r, t_max, h, alpha, beta, gamma, delta, method, name):
 
     x_points, y_points, t_points = doDots(r, t_max, h, alpha, beta, gamma, delta, method, name)
 
     plt.grid()
-    plt.plot(t_points, x_points, '-', t_points, y_points, '-')
+    plt.plot(t_points, x_points, '-', t_points, x_anal, '-' )
     plt.savefig('./two_graphs/' + name + '.png')
     plt.clf()
 
