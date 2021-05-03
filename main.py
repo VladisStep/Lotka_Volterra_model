@@ -22,22 +22,16 @@ def reverse_euler(r, h, alpha, beta, gamma, delta):
     a = beta * h + gamma * beta * h * h
     b = 1 - alpha * h - beta * h * y + gamma * h - gamma * h * h * alpha - h * delta * x
     c = -y + alpha * h * y
-    d = b * b - 4 * a * c
-    if d < 0:
-        print("Отрицательный дискриминант")
-    y1 = (-b + math.sqrt(d))/(2 * a)
-    y2 = (-b - math.sqrt(d))/(2 * a)
 
+    y1, y2 = quadratic_resolve(a, b, c)
     y_res = 0
 
     if y1 >= 0:
         y_res = y1
-        # print(y1, y2, a, b, c, d, x, y, r)
     elif y2 >= 0:
         y_res = y2
-        # print(y1, y2, a, b, c, d, x, y, r)
     else:
-        print("Отрицательные решения обратным методом Эйлера", y1, y2, a, b, c, d, x, y, r)
+        print("Отрицательные решения обратным методом Эйлера", y1, y2)
 
     x_res = x/(1 - alpha * h + beta * h * y_res)
 
@@ -106,7 +100,7 @@ def Newton_method(r, a, b, c):
     return y_0
 
 
-def f(r, t, w_alpha, w_beta, w_gamma, w_delta):
+def f(r, w_alpha, w_beta, w_gamma, w_delta):
     alpha = w_alpha
     beta = w_beta
     gamma = w_gamma
@@ -133,8 +127,8 @@ def rk2(r, h, w_alpha, w_beta, w_gamma, w_delta):
 
 
 
-def euler(r, t, h, w_alpha, w_beta, w_gamma, w_delta):
-    return f(r, t, w_alpha, w_beta, w_gamma, w_delta) * h
+def euler(r, h, w_alpha, w_beta, w_gamma, w_delta):
+    return r + f(r, w_alpha, w_beta, w_gamma, w_delta) * h
 
 
 
@@ -164,10 +158,14 @@ def invariant(points, alpha, beta, gamma, delta):
 def analytical(r, t_points, alpha, beta, gamma, delta):
     x = r[0]
     y = r[1]
+    x_balanced, y_balanced = get_balance(alpha, beta, gamma, delta)
     w = math.sqrt(alpha * gamma)
-    A = x
-    B = (alpha * x - beta * x * y)/w
-    return A * np.cos(w * t_points) + B * np.sin(w * t_points) + x
+    Ax = x - x_balanced
+    Bx = (alpha * x - beta * x * y)/w
+    Ay = y - y_balanced
+    By = (-gamma*y + delta*x*y)/w
+    return np.array(Ax * np.cos(w * t_points) + Bx * np.sin(w * t_points) + x_balanced),\
+           np.array(Ay * np.cos(w * t_points) + By * np.sin(w * t_points) + y_balanced)
 
 
 def draw_plot(r, t_max, h, alpha, beta, gamma, delta, method, name):
@@ -175,7 +173,15 @@ def draw_plot(r, t_max, h, alpha, beta, gamma, delta, method, name):
     x_points, y_points, t_points = doDots(r, t_max, h, alpha, beta, gamma, delta, method, name)
 
     plt.grid()
-    plt.plot(t_points, x_points, '-', t_points, x_anal, '-' )
+    fig, ax = plt.subplots()
+    ax.set_title(name +
+                 '\nalpha = ' + str(alpha) +
+                 ' beta = ' + str(beta) +
+                 ' gamma = ' + str(gamma) +
+                 ' delta = ' + str(delta))
+
+    plt.plot(t_points, x_points, '-', t_points, y_points, '-')
+    plt.legend(['preys', 'predators'])
     plt.savefig('./two_graphs/' + name + '.png')
     plt.clf()
 
@@ -183,7 +189,34 @@ def draw_plot(r, t_max, h, alpha, beta, gamma, delta, method, name):
     plt.plot(x_points, y_points, '-')
     plt.savefig('./circles/' + name + '.png')
     plt.clf()
-    plt.show()
+
+    return np.array([x_points, y_points]), t_points
+
+
+
+def draw_difference(res1, res2, t_points, name):
+    dif = np.fabs(res1 - res2)
+
+    plt.plot(t_points, dif[0], '-', t_points, dif[1], '-')
+    plt.savefig('./errors/' + name + '.png')
+    plt.clf()
+
+def draw_invariant(t_points, v_points, method_name):
+    plt.grid()
+    plt.plot(t_points, v_points, '-')
+    plt.savefig('./invariant/'+method_name+'.png')
+    plt.clf()
+
+def draw_analitical(t_points, x_points, y_points):
+    plt.grid()
+    plt.plot(t_points, x_points, '-', t_points, y_points, '-')
+    plt.savefig('./two_graphs/analitical.png')
+    plt.clf()
+
+    plt.grid()
+    plt.plot(x_points, y_points, '-')
+    plt.savefig('./circles/analitical.png')
+    plt.clf()
 
 
 class ApplicationWindow(QtWidgets.QMainWindow):
@@ -441,16 +474,53 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
 
         r = np.array([self.startX, self.startY])
-        draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, rk4, "rk4")
+        rk4_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, rk4, "rk4")
         r = np.array([self.startX, self.startY])
-        draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, rk2, "rk2")
+        rk2_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, rk2, "rk2")
         r = np.array([self.startX, self.startY])
-        draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, euler, "euler")
+        euler_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, euler, "euler")
         r = np.array([self.startX, self.startY])
-        draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, reverse_euler, "reverse_euler")
+        reverse_euler_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, reverse_euler, "reverse_euler")
+        r = np.array([self.startX, self.startY])
+        reverse_rk2_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, reverse_rk2, "reverse_rk2")
 
-        # print(self.startX, self.startY, self.alpha, self.beta, self.gamma, self.delta, self.t)
+        r = np.array([self.startX, self.startY])
+        analytical_x_res, analytical_y_res = analytical(r, t_points, self.alpha, self.beta, self.gamma, self.delta)
+        draw_analitical(t_points,  analytical_x_res, analytical_y_res)
+        analytical_res = np.array([analytical_x_res, analytical_y_res])
 
+        draw_difference(rk4_res, analytical_res, t_points, "rk4")
+        draw_difference(rk2_res, analytical_res, t_points, "rk2")
+        draw_difference(euler_res, analytical_res, t_points, "euler")
+        draw_difference(reverse_rk2_res, analytical_res, t_points, "reverse_rk2")
+        draw_difference(reverse_euler_res, analytical_res, t_points, "reverse_euler")
+
+        rk4_invariant = invariant(rk4_res, self.alpha, self.beta, self.gamma, self.delta)
+        rk2_invariant = invariant(rk2_res, self.alpha, self.beta, self.gamma, self.delta)
+        euler_invariant = invariant(euler_res, self.alpha, self.beta, self.gamma, self.delta)
+        reverse_euler_invariant = invariant(reverse_euler_res, self.alpha, self.beta, self.gamma, self.delta)
+        reverse_rk2_invariant = invariant(reverse_rk2_res, self.alpha, self.beta, self.gamma, self.delta)
+        analytical_invariant = invariant(analytical_res, self.alpha, self.beta, self.gamma, self.delta)
+
+        draw_invariant(t_points, rk4_invariant, "rk4")
+        draw_invariant(t_points, rk2_invariant, "rk2")
+        draw_invariant(t_points, euler_invariant, "euler")
+        draw_invariant(t_points, reverse_euler_invariant, "reverse_euler")
+        draw_invariant(t_points, reverse_rk2_invariant, "reverse_rk2")
+        draw_invariant(t_points, analytical_invariant, "analytical")
+        #
+        # draw2difference(rk4_res, rk2_res, t_points, "rk4_vs_rk2")
+        # draw_difference(rk4_res, euler_res, t_points, "rk4_vs_euler")
+        # draw_difference(rk2_res, euler_res, t_points, "rk2_vs_euler")
+        # draw_difference(reverse_euler_res, rk4_res, t_points, "reverse_euler_vs_rk4")
+        # draw_difference(reverse_euler_res, rk2_res, t_points, "reverse_euler_vs_rk2")
+        # draw_difference(reverse_euler_res, euler_res, t_points, "reverse_euler_vs_euler")
+        # draw_difference(reverse_rk2_res, rk4_res, t_points, "reverse_rk2_vs_rk4")
+        # draw_difference(reverse_rk2_res, rk2_res, t_points, "reverse_rk2_vs_rk2")
+        # draw_difference(reverse_rk2_res, euler_res, t_points, "reverse_rk2_vs_euler")
+        # draw_difference(reverse_rk2_res, reverse_euler_res, t_points, "reverse_rk2_vs_reverse_euler")
+        #
+        # np.savetxt('my_file.txt', rk4_res[0])
 
 
 if __name__ == "__main__":
