@@ -126,9 +126,11 @@ def rk4(r, h, w_alpha, w_beta, w_gamma, w_delta):
 
 
 def rk2(r, h, w_alpha, w_beta, w_gamma, w_delta):
-    k1 = h * f(r, w_alpha, w_beta, w_gamma, w_delta)
+    k1 = (h/2) * f(r, w_alpha, w_beta, w_gamma, w_delta)
     k2 = h * f(r + k1,  w_alpha, w_beta, w_gamma, w_delta)
-    return r + 0.5 * (k1 + k2)
+    return r + k2
+
+
 
 
 def euler(r, t, h, w_alpha, w_beta, w_gamma, w_delta):
