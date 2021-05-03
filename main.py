@@ -173,19 +173,15 @@ def draw_plot(r, t_max, h, alpha, beta, gamma, delta, method, name):
     x_points, y_points, t_points = doDots(r, t_max, h, alpha, beta, gamma, delta, method, name)
 
     plt.grid()
-    fig, ax = plt.subplots()
-    ax.set_title(name +
-                 '\nalpha = ' + str(alpha) +
-                 ' beta = ' + str(beta) +
-                 ' gamma = ' + str(gamma) +
-                 ' delta = ' + str(delta))
-
+    graph_title(name)
     plt.plot(t_points, x_points, '-', t_points, y_points, '-')
     plt.legend(['preys', 'predators'])
     plt.savefig('./two_graphs/' + name + '.png')
     plt.clf()
 
     plt.grid()
+    fig, ax = plt.subplots()
+    graph_title(name)
     plt.plot(x_points, y_points, '-')
     plt.savefig('./circles/' + name + '.png')
     plt.clf()
@@ -196,28 +192,41 @@ def draw_plot(r, t_max, h, alpha, beta, gamma, delta, method, name):
 
 def draw_difference(res1, res2, t_points, name):
     dif = np.fabs(res1 - res2)
-
+    graph_title(name)
     plt.plot(t_points, dif[0], '-', t_points, dif[1], '-')
+    plt.legend(['preys', 'predators'])
     plt.savefig('./errors/' + name + '.png')
     plt.clf()
 
 def draw_invariant(t_points, v_points, method_name):
     plt.grid()
+    graph_title(method_name)
     plt.plot(t_points, v_points, '-')
     plt.savefig('./invariant/'+method_name+'.png')
     plt.clf()
 
 def draw_analitical(t_points, x_points, y_points):
     plt.grid()
+    graph_title('analitical')
     plt.plot(t_points, x_points, '-', t_points, y_points, '-')
+    plt.legend(['preys', 'predators'])
     plt.savefig('./two_graphs/analitical.png')
     plt.clf()
 
     plt.grid()
+    graph_title('analitical')
     plt.plot(x_points, y_points, '-')
+    plt.legend(['preys', 'predators'])
     plt.savefig('./circles/analitical.png')
     plt.clf()
 
+def graph_title(name):
+    fig, ax = plt.subplots()
+    ax.set_title(name +
+                 ' alpha = ' + str(ApplicationWindow.alpha) +
+                 ' beta = ' + str(ApplicationWindow.beta) +
+                 ' gamma = ' + str(ApplicationWindow.gamma) +
+                 ' delta = ' + str(ApplicationWindow.delta) + '\n')
 
 class ApplicationWindow(QtWidgets.QMainWindow):
     startX = 10
