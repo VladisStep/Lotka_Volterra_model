@@ -17,7 +17,7 @@ else:
 from matplotlib.figure import Figure
 
 
-def reverse_euler(r, t, h, alpha, beta, gamma, delta):
+def reverse_euler(r, h, alpha, beta, gamma, delta):
     x, y = r[0], r[1]
     a = beta * h + gamma * beta * h * h
     b = 1 - alpha * h - beta * h * y + gamma * h - gamma * h * h * alpha - h * delta * x
@@ -44,7 +44,7 @@ def reverse_euler(r, t, h, alpha, beta, gamma, delta):
     return np.array([x_res, y_res])
 
 
-def reverse_rk2(r, t, h, alpha, beta, gamma, delta):
+def reverse_rk2(r, h, alpha, beta, gamma, delta):
     x, y = r[0], r[1]
     a = -beta * (h/2)**2 - gamma * beta * (h/2)**3 + delta * beta * x * (h/2)**3 - delta * (h/2)**3 * beta * x
     b = -1 + alpha * (h/2) - beta * (h/2) * y - beta * (h/2)**2 * gamma * y - gamma * (h/2) + \
@@ -117,17 +117,17 @@ def f(r, t, w_alpha, w_beta, w_gamma, w_delta):
     return np.array([fxd, fyd], float)
 
 
-def rk4(r, t, h, w_alpha, w_beta, w_gamma, w_delta):
-    k1 = h * f(r, t, w_alpha, w_beta, w_gamma, w_delta)
-    k2 = h * f(r + 0.5 * k1, t + 0.5 * h, w_alpha, w_beta, w_gamma, w_delta)
-    k3 = h * f(r + 0.5 * k2, t + 0.5 * h, w_alpha, w_beta, w_gamma, w_delta)
-    k4 = h * f(r + k3, t + h, w_alpha, w_beta, w_gamma, w_delta)
+def rk4(r, h, w_alpha, w_beta, w_gamma, w_delta):
+    k1 = h * f(r, w_alpha, w_beta, w_gamma, w_delta)
+    k2 = h * f(r + 0.5 * k1, w_alpha, w_beta, w_gamma, w_delta)
+    k3 = h * f(r + 0.5 * k2, w_alpha, w_beta, w_gamma, w_delta)
+    k4 = h * f(r + k3, w_alpha, w_beta, w_gamma, w_delta)
     return r + (k1 + 2 * k2 + 2 * k3 + k4) / 6
 
 
-def rk2(r, t, h, w_alpha, w_beta, w_gamma, w_delta):
-    k1 = h * f(r, t,  w_alpha, w_beta, w_gamma, w_delta)
-    k2 = h * f(r + k1, t + h,  w_alpha, w_beta, w_gamma, w_delta)
+def rk2(r, h, w_alpha, w_beta, w_gamma, w_delta):
+    k1 = h * f(r, w_alpha, w_beta, w_gamma, w_delta)
+    k2 = h * f(r + k1,  w_alpha, w_beta, w_gamma, w_delta)
     return r + 0.5 * (k1 + k2)
 
 
@@ -143,9 +143,21 @@ def doDots(r, t_max, h, alpha, beta, gamma, delta, method, name):
     for t in t_points:
         x_points.append(r[0])
         y_points.append(r[1])
-        r = method(r, t, h, alpha, beta, gamma, delta)
+        r = method(r, h, alpha, beta, gamma, delta)
 
     return x_points, y_points, t_points
+
+def get_balance(alpha, beta, gamma, delta):
+    balance_x = gamma / delta
+    balance_y = alpha / beta
+    return balance_x, balance_y
+
+def invariant(points, alpha, beta, gamma, delta):
+    x_points = points[0]
+    y_points = points[1]
+    V = delta * x_points - gamma * np.log(x_points) + beta * y_points - alpha * np.log(y_points)
+    return V
+
 
 def analytical(r, t_points, alpha, beta, gamma, delta):
     x = r[0]
@@ -416,9 +428,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         # doDots(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, euler, "euler")
 
     def set_balance(self):
-        balance_x = self.gamma/self.delta
-        balance_y = self.alpha/self.beta
-
+        balance_x, balance_y = get_balance(self.alpha, self.beta, self.gamma, self.delta)
         self.balanceX.setText("X = " + str(balance_x))
         self.balanceY.setText("Y = " + str(balance_y))
 
