@@ -124,8 +124,28 @@ def rk2(r, h, w_alpha, w_beta, w_gamma, w_delta):
     k2 = h * f(r + k1,  w_alpha, w_beta, w_gamma, w_delta)
     return r + k2
 
+def ralston(r, h, w_alpha, w_beta, w_gamma, w_delta):
+    a2 = 0.40
 
+    b31 = (-2889.0 + 1428.0 * 5 ** (1 / 2)) / 1024.0
+    b32 = (3785.0 - 1620.0 * 5 ** (1 / 2)) / 1024.0
+    b41 = (-3365.0 + 2094.0 * 5 ** (1 / 2)) / 6040.0
+    b42 = (-975.0 - 3046.0 * 5 ** (1 / 2)) / 2552.0
+    b43 = (467040.0 + 203968.0 * 5 ** (1 / 2)) / 240845.0
 
+    g1 = (263.0 + 24.0 * 5 ** (1 / 2)) / 1812.0
+    g2 = (125.0 - 1000.0 * 5 ** (1 / 2)) / 3828.0
+    g3 = 1024.0 * (3346.0 + 1623.0 * 5 ** (1 / 2)) / 5924787.0
+    g4 = (30.0 - 4.0 * 5 ** (1 / 2)) / 123.0
+
+    h2 = a2 * h
+
+    k1 = f(r, w_alpha, w_beta, w_gamma, w_delta)
+    k2 = f(r + h2 * k1, w_alpha, w_beta, w_gamma, w_delta)
+    k3 = f(r + h * (b31 * k1 + b32 * k2), w_alpha, w_beta, w_gamma, w_delta)
+    k4 = f(r + h * (b41 * k1 + b42 * k2 + b43 * k3), w_alpha, w_beta, w_gamma, w_delta)
+
+    return r + h * (g1 * k1 + g2 * k2 + g3 * k3 + g4 * k4)
 
 def euler(r, h, w_alpha, w_beta, w_gamma, w_delta):
     return r + f(r, w_alpha, w_beta, w_gamma, w_delta) * h
@@ -205,19 +225,19 @@ def draw_invariant(t_points, v_points, method_name):
     plt.savefig('./invariant/'+method_name+'.png')
     plt.clf()
 
-def draw_analitical(t_points, x_points, y_points):
+
+def draw_analytical(t_points, x_points, y_points):
     plt.grid()
-    graph_title('analitical')
+    graph_title('analytical')
     plt.plot(t_points, x_points, '-', t_points, y_points, '-')
     plt.legend(['preys', 'predators'])
-    plt.savefig('./two_graphs/analitical.png')
+    plt.savefig('./two_graphs/analytical.png')
     plt.clf()
 
     plt.grid()
-    graph_title('analitical')
+    graph_title('analytical')
     plt.plot(x_points, y_points, '-')
-    plt.legend(['preys', 'predators'])
-    plt.savefig('./circles/analitical.png')
+    plt.savefig('./circles/analytical.png')
     plt.clf()
 
 def graph_title(name):
@@ -491,11 +511,18 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         r = np.array([self.startX, self.startY])
         reverse_euler_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, reverse_euler, "reverse_euler")
         r = np.array([self.startX, self.startY])
-        reverse_rk2_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, reverse_rk2, "reverse_rk2")
+        reverse_rk2_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta,
+                                              reverse_rk2, "reverse_rk2")
+        r = np.array([self.startX, self.startY])
+        ralston_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, ralston,
+                                          "ralston")
+        r = np.array([self.startX, self.startY])
+        trapezoid_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, trapezoid,
+                                          "trapezoid")
 
         r = np.array([self.startX, self.startY])
         analytical_x_res, analytical_y_res = analytical(r, t_points, self.alpha, self.beta, self.gamma, self.delta)
-        draw_analitical(t_points,  analytical_x_res, analytical_y_res)
+        draw_analytical(t_points, analytical_x_res, analytical_y_res)
         analytical_res = np.array([analytical_x_res, analytical_y_res])
 
         draw_difference(rk4_res, analytical_res, t_points, "rk4")
@@ -503,6 +530,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         draw_difference(euler_res, analytical_res, t_points, "euler")
         draw_difference(reverse_rk2_res, analytical_res, t_points, "reverse_rk2")
         draw_difference(reverse_euler_res, analytical_res, t_points, "reverse_euler")
+        draw_difference(ralston_res, analytical_res, t_points, "ralston")
+        draw_difference(trapezoid_res, analytical_res, t_points, "trapezoid")
 
         rk4_invariant = invariant(rk4_res, self.alpha, self.beta, self.gamma, self.delta)
         rk2_invariant = invariant(rk2_res, self.alpha, self.beta, self.gamma, self.delta)
@@ -510,6 +539,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         reverse_euler_invariant = invariant(reverse_euler_res, self.alpha, self.beta, self.gamma, self.delta)
         reverse_rk2_invariant = invariant(reverse_rk2_res, self.alpha, self.beta, self.gamma, self.delta)
         analytical_invariant = invariant(analytical_res, self.alpha, self.beta, self.gamma, self.delta)
+        ralston_invariant = invariant(ralston_res, self.alpha, self.beta, self.gamma, self.delta)
+        trapezoid_invariant =invariant(trapezoid_res, self.alpha, self.beta, self.gamma, self.delta)
 
         draw_invariant(t_points, rk4_invariant, "rk4")
         draw_invariant(t_points, rk2_invariant, "rk2")
@@ -517,6 +548,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         draw_invariant(t_points, reverse_euler_invariant, "reverse_euler")
         draw_invariant(t_points, reverse_rk2_invariant, "reverse_rk2")
         draw_invariant(t_points, analytical_invariant, "analytical")
+        draw_invariant(t_points, ralston_invariant, "ralston")
+        draw_invariant(t_points, trapezoid_invariant, "trapezoid")
         #
         # draw2difference(rk4_res, rk2_res, t_points, "rk4_vs_rk2")
         # draw_difference(rk4_res, euler_res, t_points, "rk4_vs_euler")
