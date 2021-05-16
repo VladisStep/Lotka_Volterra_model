@@ -151,6 +151,69 @@ def euler(r, h, w_alpha, w_beta, w_gamma, w_delta):
     return r + f(r, w_alpha, w_beta, w_gamma, w_delta) * h
 
 
+def Adams_Moulton_4th(r, h, t_points, w_alpha, w_beta, w_gamma, w_delta):
+    # def Adams_Moulton_4th(function, y_matrix, time):
+    y = np.zeros((np.size(t_points), np.size(r)))
+    y[0] = r
+    ### bootstrap steps with 4th order one-step method
+
+    y[1] = rk4(y[0], h, w_alpha, w_beta, w_gamma, w_delta)
+    for i in range(3):
+        y[1] = rk4(y[1], h, w_alpha, w_beta, w_gamma, w_delta)
+
+    y[2] = rk4(y[1], h, w_alpha, w_beta, w_gamma, w_delta)
+    for i in range(3):
+        y[2] = rk4(y[2], h, w_alpha, w_beta, w_gamma, w_delta)
+
+    y[3] = rk4(y[2], h, w_alpha, w_beta, w_gamma, w_delta)
+    for i in range(3):
+        y[3] = rk4(y[3], h, w_alpha, w_beta, w_gamma, w_delta)
+
+    f_m2 = f(y[0], w_alpha, w_beta, w_gamma, w_delta)
+    f_m1 = f(y[1], w_alpha, w_beta, w_gamma, w_delta)
+    f_0 = f(y[2], w_alpha, w_beta, w_gamma, w_delta)
+    f_1 = f(y[3], w_alpha, w_beta, w_gamma, w_delta)
+    for i in range(3, len(t_points) - 1):
+        ### first shift the "virtual" function value array so that
+        ### [f_m3, f_m2, f_m1, f_0] corresponds to [ f[i-3], f[i-2], f[i-1], f[i] ]
+        f_m3, f_m2, f_m1, f_0 = f_m2, f_m1, f_0, f_1
+        ### predictor formula 4th order [ 55/24, -59/24, 37/24, -3/8 ]
+        y[i + 1] = y[i] + (h / 24) * (55 * f_0 - 59 * f_m1 + 37 * f_m2 - 9 * f_m3)
+        f_1 = f(y[i + 1], w_alpha, w_beta, w_gamma, w_delta)
+        ### Corrector formula 4th order [ 3/8, 19/24, -5/24, 1/24 ]
+        y[i + 1] = y[i] + (h / 24) * (9 * f_1 + 19 * f_0 - 5 * f_m1 + f_m2)
+        f_1 = f(y[i + 1], w_alpha, w_beta, w_gamma, w_delta)
+    return y
+
+#Adams-Bashforth 3 Step Method
+# def AdBash3(t0,tn,n,y0):
+def Adams_Bashforth(r, h, t_points, w_alpha, w_beta, w_gamma, w_delta):
+    y = np.zeros((np.size(t_points), np.size(r)))
+    y[0] = r
+    ### bootstrap steps with 4th order one-step method
+
+    y[1] = rk4(y[0], h, w_alpha, w_beta, w_gamma, w_delta)
+    for i in range(3):
+        y[1] = rk4(y[1], h, w_alpha, w_beta, w_gamma, w_delta)
+
+    y[2] = rk4(y[1], h, w_alpha, w_beta, w_gamma, w_delta)
+    for i in range(3):
+        y[2] = rk4(y[2], h, w_alpha, w_beta, w_gamma, w_delta)
+
+    y[3] = rk4(y[2], h, w_alpha, w_beta, w_gamma, w_delta)
+    for i in range(3):
+        y[3] = rk4(y[3], h, w_alpha, w_beta, w_gamma, w_delta)
+
+    K1 = f(y[1], w_alpha, w_beta, w_gamma, w_delta)
+    K2 = f(y[0], w_alpha, w_beta, w_gamma, w_delta)
+    for i in range(2, len(t_points)-1):
+        K3 = K2
+        K2 = K1
+        K1 = f(y[i], w_alpha, w_beta, w_gamma, w_delta)
+        # Adams-Bashforth Predictor
+        y[i+1] = y[i] + h * (23 * K1 - 16 * K2 + 5 * K3)/12
+    return y
+
 
 def doDots(r, t_max, h, alpha, beta, gamma, delta, method, name):
     t_points = np.arange(0, t_max, h)
@@ -162,6 +225,33 @@ def doDots(r, t_max, h, alpha, beta, gamma, delta, method, name):
         r = method(r, h, alpha, beta, gamma, delta)
 
     return x_points, y_points, t_points
+
+
+def doDots2(r, t_max, h, alpha, beta, gamma, delta, method, name):
+    t_points = np.arange(0, t_max, h)
+
+    x_points, y_points  = [], []
+    points = method(r, h, t_points, alpha, beta, gamma, delta)
+
+    for i in range(len(t_points)):
+        x_points.append(points[i][0])
+        y_points.append(points[i][1])
+
+    plt.grid()
+    graph_title(name)
+    plt.plot(t_points, x_points, '-', t_points, y_points, '-')
+    plt.legend(['preys', 'predators'])
+    plt.savefig('./two_graphs/' + name + '.png')
+    plt.clf()
+
+    plt.grid()
+    fig, ax = plt.subplots()
+    graph_title(name)
+    plt.plot(x_points, y_points, '-')
+    plt.savefig('./circles/' + name + '.png')
+    plt.clf()
+
+    return np.array([x_points, y_points]), t_points
 
 def get_balance(alpha, beta, gamma, delta):
     balance_x = gamma / delta
@@ -501,55 +591,66 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.changeParams()
         self.set_balance()
 
+        # r = np.array([self.startX, self.startY])
+        # rk4_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, rk4, "rk4")
+        # r = np.array([self.startX, self.startY])
+        # rk2_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, rk2, "rk2")
+        # r = np.array([self.startX, self.startY])
+        # euler_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, euler,
+        #                                 "euler")
+        # r = np.array([self.startX, self.startY])
+        # reverse_euler_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta,
+        #                                         reverse_euler, "reverse_euler")
+        # r = np.array([self.startX, self.startY])
+        # reverse_rk2_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta,
+        #                                       reverse_rk2, "reverse_rk2")
+        # r = np.array([self.startX, self.startY])
+        # ralston_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, ralston,
+        #                                   "ralston")
+        # r = np.array([self.startX, self.startY])
+        # trapezoid_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, trapezoid,
+        #                                   "trapezoid")
 
         r = np.array([self.startX, self.startY])
-        rk4_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, rk4, "rk4")
-        r = np.array([self.startX, self.startY])
-        rk2_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, rk2, "rk2")
-        r = np.array([self.startX, self.startY])
-        euler_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, euler, "euler")
-        r = np.array([self.startX, self.startY])
-        reverse_euler_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, reverse_euler, "reverse_euler")
-        r = np.array([self.startX, self.startY])
-        reverse_rk2_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta,
-                                              reverse_rk2, "reverse_rk2")
-        r = np.array([self.startX, self.startY])
-        ralston_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, ralston,
-                                          "ralston")
-        r = np.array([self.startX, self.startY])
-        trapezoid_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, trapezoid,
-                                          "trapezoid")
+        adams_res, t_points = doDots2(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, Adams_Moulton_4th,
+                                            "Adams_Moulton_4th")
+
 
         r = np.array([self.startX, self.startY])
-        analytical_x_res, analytical_y_res = analytical(r, t_points, self.alpha, self.beta, self.gamma, self.delta)
-        draw_analytical(t_points, analytical_x_res, analytical_y_res)
-        analytical_res = np.array([analytical_x_res, analytical_y_res])
+        adams_res, t_points = doDots2(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta,
+                                      Adams_Bashforth,
+                                      "Adams_Bashforth")
 
-        draw_difference(rk4_res, analytical_res, t_points, "rk4")
-        draw_difference(rk2_res, analytical_res, t_points, "rk2")
-        draw_difference(euler_res, analytical_res, t_points, "euler")
-        draw_difference(reverse_rk2_res, analytical_res, t_points, "reverse_rk2")
-        draw_difference(reverse_euler_res, analytical_res, t_points, "reverse_euler")
-        draw_difference(ralston_res, analytical_res, t_points, "ralston")
-        draw_difference(trapezoid_res, analytical_res, t_points, "trapezoid")
+        # r = np.array([self.startX, self.startY])
+        # analytical_x_res, analytical_y_res = analytical(r, t_points, self.alpha, self.beta, self.gamma, self.delta)
+        # draw_analytical(t_points, analytical_x_res, analytical_y_res)
+        # analytical_res = np.array([analytical_x_res, analytical_y_res])
+        #
+        # draw_difference(rk4_res, analytical_res, t_points, "rk4")
+        # draw_difference(rk2_res, analytical_res, t_points, "rk2")
+        # draw_difference(euler_res, analytical_res, t_points, "euler")
+        # draw_difference(reverse_rk2_res, analytical_res, t_points, "reverse_rk2")
+        # draw_difference(reverse_euler_res, analytical_res, t_points, "reverse_euler")
+        # draw_difference(ralston_res, analytical_res, t_points, "ralston")
+        # draw_difference(trapezoid_res, analytical_res, t_points, "trapezoid")
 
-        rk4_invariant = invariant(rk4_res, self.alpha, self.beta, self.gamma, self.delta)
-        rk2_invariant = invariant(rk2_res, self.alpha, self.beta, self.gamma, self.delta)
-        euler_invariant = invariant(euler_res, self.alpha, self.beta, self.gamma, self.delta)
-        reverse_euler_invariant = invariant(reverse_euler_res, self.alpha, self.beta, self.gamma, self.delta)
-        reverse_rk2_invariant = invariant(reverse_rk2_res, self.alpha, self.beta, self.gamma, self.delta)
-        analytical_invariant = invariant(analytical_res, self.alpha, self.beta, self.gamma, self.delta)
-        ralston_invariant = invariant(ralston_res, self.alpha, self.beta, self.gamma, self.delta)
-        trapezoid_invariant =invariant(trapezoid_res, self.alpha, self.beta, self.gamma, self.delta)
-
-        draw_invariant(t_points, rk4_invariant, "rk4")
-        draw_invariant(t_points, rk2_invariant, "rk2")
-        draw_invariant(t_points, euler_invariant, "euler")
-        draw_invariant(t_points, reverse_euler_invariant, "reverse_euler")
-        draw_invariant(t_points, reverse_rk2_invariant, "reverse_rk2")
-        draw_invariant(t_points, analytical_invariant, "analytical")
-        draw_invariant(t_points, ralston_invariant, "ralston")
-        draw_invariant(t_points, trapezoid_invariant, "trapezoid")
+        # rk4_invariant = invariant(rk4_res, self.alpha, self.beta, self.gamma, self.delta)
+        # rk2_invariant = invariant(rk2_res, self.alpha, self.beta, self.gamma, self.delta)
+        # euler_invariant = invariant(euler_res, self.alpha, self.beta, self.gamma, self.delta)
+        # reverse_euler_invariant = invariant(reverse_euler_res, self.alpha, self.beta, self.gamma, self.delta)
+        # reverse_rk2_invariant = invariant(reverse_rk2_res, self.alpha, self.beta, self.gamma, self.delta)
+        # analytical_invariant = invariant(analytical_res, self.alpha, self.beta, self.gamma, self.delta)
+        # ralston_invariant = invariant(ralston_res, self.alpha, self.beta, self.gamma, self.delta)
+        # trapezoid_invariant =invariant(trapezoid_res, self.alpha, self.beta, self.gamma, self.delta)
+        #
+        # draw_invariant(t_points, rk4_invariant, "rk4")
+        # draw_invariant(t_points, rk2_invariant, "rk2")
+        # draw_invariant(t_points, euler_invariant, "euler")
+        # draw_invariant(t_points, reverse_euler_invariant, "reverse_euler")
+        # draw_invariant(t_points, reverse_rk2_invariant, "reverse_rk2")
+        # draw_invariant(t_points, analytical_invariant, "analytical")
+        # draw_invariant(t_points, ralston_invariant, "ralston")
+        # draw_invariant(t_points, trapezoid_invariant, "trapezoid")
         #
         # draw2difference(rk4_res, rk2_res, t_points, "rk4_vs_rk2")
         # draw_difference(rk4_res, euler_res, t_points, "rk4_vs_euler")
