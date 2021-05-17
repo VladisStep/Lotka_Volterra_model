@@ -16,115 +16,96 @@ else:
         FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.figure import Figure
 
-
-def reverse_euler(r, h, alpha, beta, gamma, delta):
-    x, y = r[0], r[1]
-    a = beta * h + gamma * beta * h * h
-    b = 1 - alpha * h - beta * h * y + gamma * h - gamma * h * h * alpha - h * delta * x
-    c = -y + alpha * h * y
-
-    y1, y2 = quadratic_resolve(a, b, c)
-    y_res = 0
-
-    if y1 >= 0:
-        y_res = y1
-    elif y2 >= 0:
-        y_res = y2
-    else:
-        print("Отрицательные решения обратным методом Эйлера", y1, y2)
-
-    x_res = x/(1 - alpha * h + beta * h * y_res)
-
-    return np.array([x_res, y_res])
-
-
-def reverse_rk2(r, h, alpha, beta, gamma, delta):
-    x, y = r[0], r[1]
-    a = -beta * (h/2)**2 - gamma * beta * (h/2)**3 + delta * beta * x * (h/2)**3 - delta * (h/2)**3 * beta * x
-    b = -1 + alpha * (h/2) - beta * (h/2) * y - beta * (h/2)**2 * gamma * y - gamma * (h/2) + \
-        gamma * alpha * (h/2)**2 - gamma * (h/2)**2 * beta * y + beta * delta * (h/2)**2 * x * y + \
-        delta * x * (h/2) - alpha * (h/2)**2 * delta * x + beta * (h/2)**2 * x * y * delta - \
-        delta * (h/2)**2 * y * beta * x + delta * (h/2)**2 * alpha * x - delta * (h/2)**2 * beta * x * y
-    c = - gamma * y + alpha * (h/2) * gamma * y - beta * (h/2) * y**2 * gamma + delta * x * y - \
-        alpha * (h/2) * delta * x * y + beta * (h/2) * delta * x * y**2 + delta * (h/2) * y * alpha * x - \
-        delta * (h/2) * y**2 * beta * x
-
-    ky1, ky2 = quadratic_resolve(a, b, c)
-    ky_res = 0
-    y_res = 0
-
-    y1 = y + h * ky1
-    y2 = y + h * ky2
-
-    if y1 >= 0:
-        ky_res = ky1
-        y_res = y1
-    elif y2 >= 0:
-        ky_res = ky2
-        y_res = y2
-    else:
-        print("Оба у отрицательные в обратном рк2")
-
-    kx_res = (alpha * x - beta * x * y - beta * x * (h/2) * ky_res)/(1 - alpha * (h/2) + beta * (h/2) * y + beta * (h/2)**2 * ky_res)
-    x_res = x + h * kx_res
-
-    return np.array([x_res, y_res])
-
-
-def quadratic_resolve(a, b, c):
-    d = b * b - 4 * a * c
-    if d < 0:
-        print("Отрицательный дискриминант")
-    x1 = (-b + math.sqrt(d)) / (2 * a)
-    x2 = (-b - math.sqrt(d)) / (2 * a)
-
-    return x1, x2
-
-
-def f_for_Newton(y_for_Newton,a, b, c):
-
-    return a * (y_for_Newton ** 2) + b*y_for_Newton + c
-
-def f_shtrih_for_Newton(y_for_Newton,a, b, c):
-
-    return a * y_for_Newton + b
-
-def Newton_method(r, a, b, c):
-    y_0 = r[1]
-
-    for _ in range(100):
-        y_0 = y_0 - f_for_Newton(y_0, a, b, c)/f_shtrih_for_Newton(y_0, a, b, c)
-
-    print('Newton: y_0 =', y_0, 'res: f(y_0) =', a*y_0**2 + b*y_0 + c)
-
-    return y_0
-
-
-def f(r, w_alpha, w_beta, w_gamma, w_delta):
-    alpha = w_alpha
-    beta = w_beta
-    gamma = w_gamma
-    delta = w_delta
+def f(r, params):
+    alpha, beta, gamma, delta = params
     x, y = r[0], r[1]
     fxd = x * (alpha - beta * y)
     fyd = -y * (gamma - delta * x)
     return np.array([fxd, fyd], float)
 
 
-def rk4(r, h, w_alpha, w_beta, w_gamma, w_delta):
-    k1 = h * f(r, w_alpha, w_beta, w_gamma, w_delta)
-    k2 = h * f(r + 0.5 * k1, w_alpha, w_beta, w_gamma, w_delta)
-    k3 = h * f(r + 0.5 * k2, w_alpha, w_beta, w_gamma, w_delta)
-    k4 = h * f(r + k3, w_alpha, w_beta, w_gamma, w_delta)
-    return r + (k1 + 2 * k2 + 2 * k3 + k4) / 6
 
 
-def rk2(r, h, w_alpha, w_beta, w_gamma, w_delta):
-    k1 = (h/2) * f(r, w_alpha, w_beta, w_gamma, w_delta)
-    k2 = h * f(r + k1,  w_alpha, w_beta, w_gamma, w_delta)
-    return r + k2
+def reverse_euler(r, h, t_points, params, function):
+    y = np.zeros((np.size(t_points), np.size(r)))
+    y[0] = r
+    for t in range(1, len(t_points)):
+        r_b = r + function(r, params) * h
+        r = r + function(r_b, params) * h
+        y[t] = r
+    return y
 
-def ralston(r, h, w_alpha, w_beta, w_gamma, w_delta):
+
+
+
+def reverse_rk2(r, h, t_points, params, function):
+
+    y = np.zeros((np.size(t_points), np.size(r)))
+    y[0] = r
+
+    for t in range(1, len(t_points)):
+
+        k1 = (h / 2) * function(r, params)
+        k2 = h * function(r + k1, params)
+        r_b = r + k2
+
+        k1 = (h / 2) * function(r_b, params)
+        k2 = h * function(r_b + k1, params)
+        r = r + k2
+        y[t] = r
+
+    return y
+
+
+
+
+def rk4(r, h, t_points, params, function):
+    y = np.zeros((np.size(t_points), np.size(r)))
+    y[0] = r
+
+
+    for t in range(1, len(t_points)):
+        k1 = h * function(r, params)
+        k2 = h * function(r + 0.5 * k1, params)
+        k3 = h * function(r + 0.5 * k2, params)
+        k4 = h * function(r + k3, params)
+
+        r = r + (k1 + 2 * k2 + 2 * k3 + k4) / 6
+
+        y[t] = r
+
+    return y
+
+
+def rk2(r, h, t_points, params, function):
+
+    y = np.zeros((np.size(t_points), np.size(r)))
+    y[0] = r
+
+    for t in range(1, len(t_points)):
+        k1 = (h / 2) * function(r, params)
+        k2 = h * function(r + k1, params)
+        r = r + k2
+        y[t] = r
+
+    return y
+
+def trapezoid(r, h, t_points, params, function):
+
+    y = np.zeros((np.size(t_points), np.size(r)))
+    y[0] = r
+
+    for t in range(1, len(t_points)):
+        r_b = r + function(r, params) * h
+        r = r + (function(r, params) + function(r_b, params)) * h * 1/2
+        y[t] = r
+
+    return y
+
+
+
+
+def ralston(r, h, t_points, params, function):
     a2 = 0.40
 
     b31 = (-2889.0 + 1428.0 * 5 ** (1 / 2)) / 1024.0
@@ -140,123 +121,111 @@ def ralston(r, h, w_alpha, w_beta, w_gamma, w_delta):
 
     h2 = a2 * h
 
-    k1 = f(r, w_alpha, w_beta, w_gamma, w_delta)
-    k2 = f(r + h2 * k1, w_alpha, w_beta, w_gamma, w_delta)
-    k3 = f(r + h * (b31 * k1 + b32 * k2), w_alpha, w_beta, w_gamma, w_delta)
-    k4 = f(r + h * (b41 * k1 + b42 * k2 + b43 * k3), w_alpha, w_beta, w_gamma, w_delta)
-
-    return r + h * (g1 * k1 + g2 * k2 + g3 * k3 + g4 * k4)
-
-def euler(r, h, w_alpha, w_beta, w_gamma, w_delta):
-    return r + f(r, w_alpha, w_beta, w_gamma, w_delta) * h
-
-
-def Adams_Moulton_4th(r, h, t_points, w_alpha, w_beta, w_gamma, w_delta):
-    # def Adams_Moulton_4th(function, y_matrix, time):
     y = np.zeros((np.size(t_points), np.size(r)))
     y[0] = r
-    ### bootstrap steps with 4th order one-step method
 
-    y[1] = rk4(y[0], h, w_alpha, w_beta, w_gamma, w_delta)
-    for i in range(3):
-        y[1] = rk4(y[1], h, w_alpha, w_beta, w_gamma, w_delta)
+    for t in range(1, len(t_points)):
+        k1 = function(r, params)
+        k2 = function(r + h2 * k1, params)
+        k3 = function(r + h * (b31 * k1 + b32 * k2), params)
+        k4 = function(r + h * (b41 * k1 + b42 * k2 + b43 * k3), params)
 
-    y[2] = rk4(y[1], h, w_alpha, w_beta, w_gamma, w_delta)
-    for i in range(3):
-        y[2] = rk4(y[2], h, w_alpha, w_beta, w_gamma, w_delta)
+        r = r + h * (g1 * k1 + g2 * k2 + g3 * k3 + g4 * k4)
+        y[t] = r
 
-    y[3] = rk4(y[2], h, w_alpha, w_beta, w_gamma, w_delta)
-    for i in range(3):
-        y[3] = rk4(y[3], h, w_alpha, w_beta, w_gamma, w_delta)
+    return y
 
-    f_m2 = f(y[0], w_alpha, w_beta, w_gamma, w_delta)
-    f_m1 = f(y[1], w_alpha, w_beta, w_gamma, w_delta)
-    f_0 = f(y[2], w_alpha, w_beta, w_gamma, w_delta)
-    f_1 = f(y[3], w_alpha, w_beta, w_gamma, w_delta)
+
+
+
+def euler(r, h, t_points, params, function):
+
+    y = np.zeros((np.size(t_points), np.size(r)))
+    y[0] = r
+
+    for t in range(1, len(t_points)):
+
+        r = r + function(r, params) * h
+        y[t] = r
+
+    return y
+
+
+
+
+def Adams_Moulton(r, h, t_points, params, function):
+    # def Adams_Moulton_4th(function, y_matrix, time):
+
+    y = np.zeros((np.size(t_points), np.size(r)))
+    y[0] = r
+
+    y[1] = rk4(y[0], h, t_points[0:4], params, function)[3]
+    y[2] = rk4(y[1], h, t_points[0:4], params, function)[3]
+    y[3] = rk4(y[2], h, t_points[0:4], params, function)[3]
+
+    f_m2 = function(y[0], params)
+    f_m1 = function(y[1], params)
+    f_0 = function(y[2], params)
+    f_1 = function(y[3], params)
     for i in range(3, len(t_points) - 1):
         ### first shift the "virtual" function value array so that
         ### [f_m3, f_m2, f_m1, f_0] corresponds to [ f[i-3], f[i-2], f[i-1], f[i] ]
         f_m3, f_m2, f_m1, f_0 = f_m2, f_m1, f_0, f_1
         ### predictor formula 4th order [ 55/24, -59/24, 37/24, -3/8 ]
         y[i + 1] = y[i] + (h / 24) * (55 * f_0 - 59 * f_m1 + 37 * f_m2 - 9 * f_m3)
-        f_1 = f(y[i + 1], w_alpha, w_beta, w_gamma, w_delta)
+        f_1 = function(y[i + 1], params)
         ### Corrector formula 4th order [ 3/8, 19/24, -5/24, 1/24 ]
         y[i + 1] = y[i] + (h / 24) * (9 * f_1 + 19 * f_0 - 5 * f_m1 + f_m2)
-        f_1 = f(y[i + 1], w_alpha, w_beta, w_gamma, w_delta)
+        f_1 = function(y[i + 1], params)
     return y
+
+
+
 
 #Adams-Bashforth 3 Step Method
 # def AdBash3(t0,tn,n,y0):
-def Adams_Bashforth(r, h, t_points, w_alpha, w_beta, w_gamma, w_delta):
+def Adams_Bashforth(r, h, t_points, params, function):
     y = np.zeros((np.size(t_points), np.size(r)))
     y[0] = r
+
     ### bootstrap steps with 4th order one-step method
+    y[1] = rk4(y[0], h, t_points[0:4], params, function)[3]
+    y[2] = rk4(y[1], h, t_points[0:4], params, function)[3]
+    y[3] = rk4(y[2], h, t_points[0:4], params, function)[3]
 
-    y[1] = rk4(y[0], h, w_alpha, w_beta, w_gamma, w_delta)
-    for i in range(3):
-        y[1] = rk4(y[1], h, w_alpha, w_beta, w_gamma, w_delta)
-
-    y[2] = rk4(y[1], h, w_alpha, w_beta, w_gamma, w_delta)
-    for i in range(3):
-        y[2] = rk4(y[2], h, w_alpha, w_beta, w_gamma, w_delta)
-
-    y[3] = rk4(y[2], h, w_alpha, w_beta, w_gamma, w_delta)
-    for i in range(3):
-        y[3] = rk4(y[3], h, w_alpha, w_beta, w_gamma, w_delta)
-
-    K1 = f(y[1], w_alpha, w_beta, w_gamma, w_delta)
-    K2 = f(y[0], w_alpha, w_beta, w_gamma, w_delta)
+    K1 = function(y[1], params)
+    K2 = function(y[0], params)
     for i in range(2, len(t_points)-1):
         K3 = K2
         K2 = K1
-        K1 = f(y[i], w_alpha, w_beta, w_gamma, w_delta)
+        K1 = function(y[i], params)
         # Adams-Bashforth Predictor
         y[i+1] = y[i] + h * (23 * K1 - 16 * K2 + 5 * K3)/12
+
     return y
 
 
-def doDots(r, t_max, h, alpha, beta, gamma, delta, method, name):
+
+
+def doDots(r, t_max, h, params, method):
     t_points = np.arange(0, t_max, h)
-    x_points, y_points = [], []
-
-    for t in t_points:
-        x_points.append(r[0])
-        y_points.append(r[1])
-        r = method(r, h, alpha, beta, gamma, delta)
-
-    return x_points, y_points, t_points
-
-
-def doDots2(r, t_max, h, alpha, beta, gamma, delta, method, name):
-    t_points = np.arange(0, t_max, h)
-
     x_points, y_points  = [], []
-    points = method(r, h, t_points, alpha, beta, gamma, delta)
+    points = method(r, h, t_points, params, f)
+    for t in range(len(t_points)):
+        x_points.append(points[t][0])
+        y_points.append(points[t][1])
+    return np.array([x_points, y_points])
 
-    for i in range(len(t_points)):
-        x_points.append(points[i][0])
-        y_points.append(points[i][1])
 
-    plt.grid()
-    graph_title(name)
-    plt.plot(t_points, x_points, '-', t_points, y_points, '-')
-    plt.legend(['preys', 'predators'])
-    plt.savefig('./two_graphs/' + name + '.png')
-    plt.clf()
 
-    plt.grid()
-    fig, ax = plt.subplots()
-    graph_title(name)
-    plt.plot(x_points, y_points, '-')
-    plt.savefig('./circles/' + name + '.png')
-    plt.clf()
-
-    return np.array([x_points, y_points]), t_points
 
 def get_balance(alpha, beta, gamma, delta):
     balance_x = gamma / delta
     balance_y = alpha / beta
     return balance_x, balance_y
+
+
+
 
 def invariant(points, alpha, beta, gamma, delta):
     x_points = points[0]
@@ -265,22 +234,24 @@ def invariant(points, alpha, beta, gamma, delta):
     return V
 
 
+
+
 def analytical(r, t_points, alpha, beta, gamma, delta):
     x = r[0]
     y = r[1]
     x_balanced, y_balanced = get_balance(alpha, beta, gamma, delta)
     w = math.sqrt(alpha * gamma)
     Ax = x - x_balanced
-    Bx = (alpha * x - beta * x * y)/w
+    Bx = (alpha * x - beta * x * y) / w
     Ay = y - y_balanced
-    By = (-gamma*y + delta*x*y)/w
-    return np.array(Ax * np.cos(w * t_points) + Bx * np.sin(w * t_points) + x_balanced),\
+    By = (-gamma * y + delta * x * y) / w
+    return np.array(Ax * np.cos(w * t_points) + Bx * np.sin(w * t_points) + x_balanced), \
            np.array(Ay * np.cos(w * t_points) + By * np.sin(w * t_points) + y_balanced)
 
 
-def draw_plot(r, t_max, h, alpha, beta, gamma, delta, method, name):
 
-    x_points, y_points, t_points = doDots(r, t_max, h, alpha, beta, gamma, delta, method, name)
+
+def draw_plot(t_points, x_points, y_points, name):
 
     plt.grid()
     graph_title(name)
@@ -297,6 +268,7 @@ def draw_plot(r, t_max, h, alpha, beta, gamma, delta, method, name):
     plt.clf()
 
     return np.array([x_points, y_points]), t_points
+
 
 
 
@@ -307,13 +279,19 @@ def draw_difference(res1, res2, t_points, name):
     plt.legend(['preys', 'predators'])
     plt.savefig('./errors/' + name + '.png')
     plt.clf()
+    return dif
+
+
+
 
 def draw_invariant(t_points, v_points, method_name):
     plt.grid()
     graph_title(method_name)
     plt.plot(t_points, v_points, '-')
-    plt.savefig('./invariant/'+method_name+'.png')
+    plt.savefig('./invariant/' + method_name + '.png')
     plt.clf()
+
+
 
 
 def draw_analytical(t_points, x_points, y_points):
@@ -330,6 +308,9 @@ def draw_analytical(t_points, x_points, y_points):
     plt.savefig('./circles/analytical.png')
     plt.clf()
 
+
+
+
 def graph_title(name):
     fig, ax = plt.subplots()
     ax.set_title(name +
@@ -337,6 +318,9 @@ def graph_title(name):
                  ' beta = ' + str(ApplicationWindow.beta) +
                  ' gamma = ' + str(ApplicationWindow.gamma) +
                  ' delta = ' + str(ApplicationWindow.delta) + '\n')
+
+
+
 
 class ApplicationWindow(QtWidgets.QMainWindow):
     startX = 10
@@ -354,7 +338,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     t = 100.0
 
     h = 0.01
-
 
     def __init__(self):
         super().__init__()
@@ -374,7 +357,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         # # self.addToolBar(QtCore.Qt.BottomToolBarArea,
         # #                 NavigationToolbar(dynamic_canvas, self))
 
-        layoutLabels= QtWidgets.QHBoxLayout(self._main)
+        layoutLabels = QtWidgets.QHBoxLayout(self._main)
 
         self.balanceX = QtWidgets.QLabel(self._main)
         layoutLabels.addWidget(self.balanceX)
@@ -385,10 +368,9 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
         layout.addLayout(layoutLabels)
 
-
         layoutPreysAndPredators = QtWidgets.QHBoxLayout(self._main)
 
-        #-Preys----------------------------------------------------
+        # -Preys----------------------------------------------------
         layoutTextBox = QtWidgets.QVBoxLayout(self._main)
         lbl = QtWidgets.QLabel(self)
         lbl.setText("Preys")
@@ -398,7 +380,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         layoutTextBox.addWidget(self.textBoxPreys)
         layoutPreysAndPredators.addLayout(layoutTextBox)
 
-        #-Predators------------------------------------------------
+        # -Predators------------------------------------------------
         layoutTextBox = QtWidgets.QVBoxLayout(self._main)
         lbl = QtWidgets.QLabel(self)
         lbl.setText("Predators")
@@ -412,7 +394,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
         layoutCoef = QtWidgets.QHBoxLayout(self._main)
 
-        #-alpha----------------------------------------------------
+        # -alpha----------------------------------------------------
         layoutTextBox = QtWidgets.QVBoxLayout(self._main)
         lbl = QtWidgets.QLabel(self)
         lbl.setText("Alpha")
@@ -422,7 +404,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         layoutTextBox.addWidget(self.textBoxAlpha)
         layoutCoef.addLayout(layoutTextBox)
 
-        #-beta-----------------------------------------------------
+        # -beta-----------------------------------------------------
         layoutTextBox = QtWidgets.QVBoxLayout(self._main)
         lbl = QtWidgets.QLabel(self)
         lbl.setText("Beta")
@@ -432,7 +414,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         layoutTextBox.addWidget(self.textBoxBeta)
         layoutCoef.addLayout(layoutTextBox)
 
-        #-gamma-----------------------------------------------------
+        # -gamma-----------------------------------------------------
         layoutTextBox = QtWidgets.QVBoxLayout(self._main)
         lbl = QtWidgets.QLabel(self)
         lbl.setText("Gamma")
@@ -442,7 +424,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         layoutTextBox.addWidget(self.textBoxGamma)
         layoutCoef.addLayout(layoutTextBox)
 
-        #-delta-----------------------------------------------------
+        # -delta-----------------------------------------------------
         layoutTextBox = QtWidgets.QVBoxLayout(self._main)
         lbl = QtWidgets.QLabel(self)
         lbl.setText("Delta")
@@ -456,7 +438,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
         layoutTimeAndH = QtWidgets.QHBoxLayout(self._main)
 
-        #-t---------------------------------------------------------
+        # -t---------------------------------------------------------
         layoutTextBox = QtWidgets.QVBoxLayout(self._main)
         lbl = QtWidgets.QLabel(self)
         lbl.setText("Time")
@@ -466,7 +448,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         layoutTextBox.addWidget(self.textBoxTime)
         layoutTimeAndH.addLayout(layoutTextBox)
 
-        #-h---------------------------------------------------------
+        # -h---------------------------------------------------------
         layoutTextBox = QtWidgets.QVBoxLayout(self._main)
         lbl = QtWidgets.QLabel(self)
         lbl.setText("h")
@@ -477,7 +459,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         layoutTimeAndH.addLayout(layoutTextBox)
 
         layout.addLayout(layoutTimeAndH)
-
 
         layoutButtons = QtWidgets.QHBoxLayout(self._main)
         self.btn = QtWidgets.QPushButton("Print graphs")
@@ -573,7 +554,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             QMessageBox.about(self, 'Error', 'Шаг должен  быть числом')
             pass
 
-
     def printGraphs(self):
         print('print')
 
@@ -586,84 +566,42 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.balanceX.setText("X = " + str(balance_x))
         self.balanceY.setText("Y = " + str(balance_y))
 
-
     def doGraphs(self):
         self.changeParams()
         self.set_balance()
 
-        # r = np.array([self.startX, self.startY])
-        # rk4_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, rk4, "rk4")
-        # r = np.array([self.startX, self.startY])
-        # rk2_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, rk2, "rk2")
-        # r = np.array([self.startX, self.startY])
-        # euler_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, euler,
-        #                                 "euler")
-        # r = np.array([self.startX, self.startY])
-        # reverse_euler_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta,
-        #                                         reverse_euler, "reverse_euler")
-        # r = np.array([self.startX, self.startY])
-        # reverse_rk2_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta,
-        #                                       reverse_rk2, "reverse_rk2")
-        # r = np.array([self.startX, self.startY])
-        # ralston_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, ralston,
-        #                                   "ralston")
-        # r = np.array([self.startX, self.startY])
-        # trapezoid_res, t_points = draw_plot(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, trapezoid,
-        #                                   "trapezoid")
+        methods = [
+            [euler, "euler"],
+            [reverse_euler, "reverse_euler"],
+            [rk2, "rk2"],
+            [reverse_rk2, "reverse_rk2"],
+            [rk4, "rk4"],
+            [ralston, "ralston"],
+            [trapezoid, "trapezoid"],
+            [Adams_Moulton, "Adams_Moulton"],
+            [Adams_Bashforth, "Adams_Bashforth"]
+        ]
 
+        t_points = np.arange(0, self.t, self.h)
+
+        # Analytical
         r = np.array([self.startX, self.startY])
-        adams_res, t_points = doDots2(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, Adams_Moulton_4th,
-                                            "Adams_Moulton_4th")
+        analytical_x_res, analytical_y_res = analytical(r, t_points, self.alpha, self.beta, self.gamma, self.delta)
+        draw_plot(t_points, analytical_x_res, analytical_y_res, 'analytical')
+        draw_analytical(t_points, analytical_x_res, analytical_y_res)
+        analytical_res = np.array([analytical_x_res, analytical_y_res])
 
+        params = [self.alpha, self.beta, self.gamma, self.delta]
+        for m in methods:
+            r = np.array([self.startX, self.startY])
+            res = doDots(r, self.t, self.h, params, m[0])
+            draw_plot(t_points, res[0], res[1], m[1])
+            dif = draw_difference(res, analytical_res, t_points, m[1])
 
-        r = np.array([self.startX, self.startY])
-        adams_res, t_points = doDots2(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta,
-                                      Adams_Bashforth,
-                                      "Adams_Bashforth")
+            invariantDots = invariant(res, self.alpha, self.beta, self.gamma, self.delta)
+            draw_invariant(t_points, invariantDots, m[1])
 
-        # r = np.array([self.startX, self.startY])
-        # analytical_x_res, analytical_y_res = analytical(r, t_points, self.alpha, self.beta, self.gamma, self.delta)
-        # draw_analytical(t_points, analytical_x_res, analytical_y_res)
-        # analytical_res = np.array([analytical_x_res, analytical_y_res])
-        #
-        # draw_difference(rk4_res, analytical_res, t_points, "rk4")
-        # draw_difference(rk2_res, analytical_res, t_points, "rk2")
-        # draw_difference(euler_res, analytical_res, t_points, "euler")
-        # draw_difference(reverse_rk2_res, analytical_res, t_points, "reverse_rk2")
-        # draw_difference(reverse_euler_res, analytical_res, t_points, "reverse_euler")
-        # draw_difference(ralston_res, analytical_res, t_points, "ralston")
-        # draw_difference(trapezoid_res, analytical_res, t_points, "trapezoid")
-
-        # rk4_invariant = invariant(rk4_res, self.alpha, self.beta, self.gamma, self.delta)
-        # rk2_invariant = invariant(rk2_res, self.alpha, self.beta, self.gamma, self.delta)
-        # euler_invariant = invariant(euler_res, self.alpha, self.beta, self.gamma, self.delta)
-        # reverse_euler_invariant = invariant(reverse_euler_res, self.alpha, self.beta, self.gamma, self.delta)
-        # reverse_rk2_invariant = invariant(reverse_rk2_res, self.alpha, self.beta, self.gamma, self.delta)
-        # analytical_invariant = invariant(analytical_res, self.alpha, self.beta, self.gamma, self.delta)
-        # ralston_invariant = invariant(ralston_res, self.alpha, self.beta, self.gamma, self.delta)
-        # trapezoid_invariant =invariant(trapezoid_res, self.alpha, self.beta, self.gamma, self.delta)
-        #
-        # draw_invariant(t_points, rk4_invariant, "rk4")
-        # draw_invariant(t_points, rk2_invariant, "rk2")
-        # draw_invariant(t_points, euler_invariant, "euler")
-        # draw_invariant(t_points, reverse_euler_invariant, "reverse_euler")
-        # draw_invariant(t_points, reverse_rk2_invariant, "reverse_rk2")
-        # draw_invariant(t_points, analytical_invariant, "analytical")
-        # draw_invariant(t_points, ralston_invariant, "ralston")
-        # draw_invariant(t_points, trapezoid_invariant, "trapezoid")
-        #
-        # draw2difference(rk4_res, rk2_res, t_points, "rk4_vs_rk2")
-        # draw_difference(rk4_res, euler_res, t_points, "rk4_vs_euler")
-        # draw_difference(rk2_res, euler_res, t_points, "rk2_vs_euler")
-        # draw_difference(reverse_euler_res, rk4_res, t_points, "reverse_euler_vs_rk4")
-        # draw_difference(reverse_euler_res, rk2_res, t_points, "reverse_euler_vs_rk2")
-        # draw_difference(reverse_euler_res, euler_res, t_points, "reverse_euler_vs_euler")
-        # draw_difference(reverse_rk2_res, rk4_res, t_points, "reverse_rk2_vs_rk4")
-        # draw_difference(reverse_rk2_res, rk2_res, t_points, "reverse_rk2_vs_rk2")
-        # draw_difference(reverse_rk2_res, euler_res, t_points, "reverse_rk2_vs_euler")
-        # draw_difference(reverse_rk2_res, reverse_euler_res, t_points, "reverse_rk2_vs_reverse_euler")
-        #
-        # np.savetxt('my_file.txt', rk4_res[0])
+        print("Correct")
 
 
 if __name__ == "__main__":
