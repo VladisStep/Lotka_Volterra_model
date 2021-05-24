@@ -27,21 +27,17 @@ def f(r, params):
 
 
 def reverse_euler(r, h, t_points, params, function):
-    y = np.zeros((np.size(t_points), np.size(r)))
-    y[0] = r
+
     for t in range(1, len(t_points)):
         r_b = r + function(r, params) * h
         r = r + function(r_b, params) * h
-        y[t] = r
-    return y
+
+    return r
 
 
 
 
 def reverse_rk2(r, h, t_points, params, function):
-
-    y = np.zeros((np.size(t_points), np.size(r)))
-    y[0] = r
 
     for t in range(1, len(t_points)):
 
@@ -52,17 +48,13 @@ def reverse_rk2(r, h, t_points, params, function):
         k1 = (h / 2) * function(r_b, params)
         k2 = h * function(r_b + k1, params)
         r = r + k2
-        y[t] = r
 
-    return y
+    return r
 
 
 
 
 def rk4(r, h, t_points, params, function):
-    y = np.zeros((np.size(t_points), np.size(r)))
-    y[0] = r
-
 
     for t in range(1, len(t_points)):
         k1 = h * function(r, params)
@@ -72,35 +64,28 @@ def rk4(r, h, t_points, params, function):
 
         r = r + (k1 + 2 * k2 + 2 * k3 + k4) / 6
 
-        y[t] = r
+    return r
 
-    return y
 
 
 def rk2(r, h, t_points, params, function):
-
-    y = np.zeros((np.size(t_points), np.size(r)))
-    y[0] = r
 
     for t in range(1, len(t_points)):
         k1 = (h / 2) * function(r, params)
         k2 = h * function(r + k1, params)
         r = r + k2
-        y[t] = r
+    return r
 
-    return y
+
+
 
 def trapezoid(r, h, t_points, params, function):
-
-    y = np.zeros((np.size(t_points), np.size(r)))
-    y[0] = r
 
     for t in range(1, len(t_points)):
         r_b = r + function(r, params) * h
         r = r + (function(r, params) + function(r_b, params)) * h * 1/2
-        y[t] = r
 
-    return y
+    return r
 
 
 
@@ -121,9 +106,6 @@ def ralston(r, h, t_points, params, function):
 
     h2 = a2 * h
 
-    y = np.zeros((np.size(t_points), np.size(r)))
-    y[0] = r
-
     for t in range(1, len(t_points)):
         k1 = function(r, params)
         k2 = function(r + h2 * k1, params)
@@ -131,78 +113,75 @@ def ralston(r, h, t_points, params, function):
         k4 = function(r + h * (b41 * k1 + b42 * k2 + b43 * k3), params)
 
         r = r + h * (g1 * k1 + g2 * k2 + g3 * k3 + g4 * k4)
-        y[t] = r
 
-    return y
+    return r
 
 
 
 
 def euler(r, h, t_points, params, function):
 
-    y = np.zeros((np.size(t_points), np.size(r)))
-    y[0] = r
-
     for t in range(1, len(t_points)):
 
         r = r + function(r, params) * h
-        y[t] = r
 
-    return y
+    return r
 
 
 
 
 def Adams_Moulton(r, h, t_points, params, function):
-    # def Adams_Moulton_4th(function, y_matrix, time):
 
-    y = np.zeros((np.size(t_points), np.size(r)))
-    y[0] = r
+    y_0 = r
 
-    y[1] = rk4(y[0], h, t_points[0:4], params, function)[3]
-    y[2] = rk4(y[1], h, t_points[0:4], params, function)[3]
-    y[3] = rk4(y[2], h, t_points[0:4], params, function)[3]
+    y_1 = rk4(y_0, h, [0, 1, 2, 3], params, function)
+    if (len(t_points) == 1): return y_1
+    y_2 = rk4(y_1, h, [0, 1, 2, 3], params, function)
+    if (len(t_points) == 2): return y_2
+    y_3 = rk4(y_2, h, [0, 1, 2, 3], params, function)
+    if (len(t_points) == 3): return y_3
 
-    f_m2 = function(y[0], params)
-    f_m1 = function(y[1], params)
-    f_0 = function(y[2], params)
-    f_1 = function(y[3], params)
+    f_m2 = function(y_0, params)
+    f_m1 = function(y_1, params)
+    f_0 = function(y_2, params)
+    f_1 = function(y_3, params)
+    y_4 = y_3
+
     for i in range(3, len(t_points) - 1):
-        ### first shift the "virtual" function value array so that
-        ### [f_m3, f_m2, f_m1, f_0] corresponds to [ f[i-3], f[i-2], f[i-1], f[i] ]
+
         f_m3, f_m2, f_m1, f_0 = f_m2, f_m1, f_0, f_1
-        ### predictor formula 4th order [ 55/24, -59/24, 37/24, -3/8 ]
-        y[i + 1] = y[i] + (h / 24) * (55 * f_0 - 59 * f_m1 + 37 * f_m2 - 9 * f_m3)
-        f_1 = function(y[i + 1], params)
-        ### Corrector formula 4th order [ 3/8, 19/24, -5/24, 1/24 ]
-        y[i + 1] = y[i] + (h / 24) * (9 * f_1 + 19 * f_0 - 5 * f_m1 + f_m2)
-        f_1 = function(y[i + 1], params)
-    return y
+        y_4 = y_3 + (h / 24) * (55 * f_0 - 59 * f_m1 + 37 * f_m2 - 9 * f_m3)
+        f_1 = function(y_4, params)
+
+        y_4 = y_3 + (h / 24) * (9 * f_1 + 19 * f_0 - 5 * f_m1 + f_m2)
+        f_1 = function(y_4, params)
+        y_3 = y_4
+
+    return y_4
 
 
 
 
-#Adams-Bashforth 3 Step Method
-# def AdBash3(t0,tn,n,y0):
 def Adams_Bashforth(r, h, t_points, params, function):
-    y = np.zeros((np.size(t_points), np.size(r)))
-    y[0] = r
 
-    ### bootstrap steps with 4th order one-step method
-    y[1] = rk4(y[0], h, t_points[0:4], params, function)[3]
-    y[2] = rk4(y[1], h, t_points[0:4], params, function)[3]
-    y[3] = rk4(y[2], h, t_points[0:4], params, function)[3]
+    y_0 = r
+    y_1 = rk4(y_0, h, [0, 1, 2], params, function)
+    if (len(t_points) == 1): return y_1
+    y_2 = rk4(y_1, h, [0, 1, 2], params, function)
+    if (len(t_points) == 2): return y_2
 
-    K1 = function(y[1], params)
-    K2 = function(y[0], params)
-    for i in range(2, len(t_points)-1):
+    K1 = function(y_1, params)
+    K2 = function(y_0, params)
+    y_3 = function(y_0, params)
+
+    for i in range(2, len(t_points)):
         K3 = K2
         K2 = K1
-        K1 = function(y[i], params)
-        # Adams-Bashforth Predictor
-        y[i+1] = y[i] + h * (23 * K1 - 16 * K2 + 5 * K3)/12
+        K1 = function(y_2, params)
+        y_3 = y_2 + h * (23 * K1 - 16 * K2 + 5 * K3)/12
+        y_2 = y_3
 
-    return y
+    return y_3
 
 
 
@@ -210,10 +189,22 @@ def Adams_Bashforth(r, h, t_points, params, function):
 def doDots(r, t_max, h, params, method):
     t_points = np.arange(0, t_max, h)
     x_points, y_points  = [], []
-    points = method(r, h, t_points, params, f)
-    for t in range(len(t_points)):
-        x_points.append(points[t][0])
-        y_points.append(points[t][1])
+
+    points = []
+
+    points.append(r)
+
+    for i in range(1, len(t_points)):
+        points.append(method(r, h, t_points[0:i], params, f))
+
+        if i % 1000 == 0:
+            print(i)
+
+    for p in points:
+        x_points.append(p[0])
+        y_points.append(p[1])
+
+
     return np.array([x_points, y_points])
 
 
@@ -554,12 +545,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             QMessageBox.about(self, 'Error', 'Шаг должен  быть числом')
             pass
 
-    def printGraphs(self):
-        print('print')
-
-        # self.changeParams()
-        # r = np.array([self.startX, self.startY])
-        # doDots(r, self.t, self.h, self.alpha, self.beta, self.gamma, self.delta, euler, "euler")
 
     def set_balance(self):
         balance_x, balance_y = get_balance(self.alpha, self.beta, self.gamma, self.delta)
@@ -593,13 +578,15 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
         params = [self.alpha, self.beta, self.gamma, self.delta]
         for m in methods:
+            print('Start', m[1])
             r = np.array([self.startX, self.startY])
             res = doDots(r, self.t, self.h, params, m[0])
-            draw_plot(t_points, res[0], res[1], m[1])
+            draw_plot(t_points[0:len(res[1])], res[0], res[1], m[1])
             dif = draw_difference(res, analytical_res, t_points, m[1])
 
             invariantDots = invariant(res, self.alpha, self.beta, self.gamma, self.delta)
             draw_invariant(t_points, invariantDots, m[1])
+            print('End', m[1])
 
         print("Correct")
 
