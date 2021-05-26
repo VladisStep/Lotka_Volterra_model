@@ -24,73 +24,42 @@ def f(r, params):
     return np.array([fxd, fyd], float)
 
 
+def step_reverse_euler(y, h, params, function):
+    r_b = y[0] + function(y[0], params) * h
+    return y[0] + function(r_b, params) * h
 
 
-def reverse_euler(r, h, t_points, params, function):
+def step_reverse_rk2(y, h, params, function):
+    k1 = (h / 2) * function(y[0], params)
+    k2 = h * function(y[0] + k1, params)
+    r_b = y[0] + k2
 
-    for t in range(1, len(t_points)):
-        r_b = r + function(r, params) * h
-        r = r + function(r_b, params) * h
-
-    return r
-
-
-
-
-def reverse_rk2(r, h, t_points, params, function):
-
-    for t in range(1, len(t_points)):
-
-        k1 = (h / 2) * function(r, params)
-        k2 = h * function(r + k1, params)
-        r_b = r + k2
-
-        k1 = (h / 2) * function(r_b, params)
-        k2 = h * function(r_b + k1, params)
-        r = r + k2
-
-    return r
+    k1 = (h / 2) * function(r_b, params)
+    k2 = h * function(r_b + k1, params)
+    return y[0] + k2
 
 
+def step_rk4(y, h, params, function):
+    k1 = h * function(y[0], params)
+    k2 = h * function(y[0] + 0.5 * k1, params)
+    k3 = h * function(y[0] + 0.5 * k2, params)
+    k4 = h * function(y[0] + k3, params)
+
+    return y[0] + (k1 + 2 * k2 + 2 * k3 + k4) / 6
 
 
-def rk4(r, h, t_points, params, function):
-
-    for t in range(1, len(t_points)):
-        k1 = h * function(r, params)
-        k2 = h * function(r + 0.5 * k1, params)
-        k3 = h * function(r + 0.5 * k2, params)
-        k4 = h * function(r + k3, params)
-
-        r = r + (k1 + 2 * k2 + 2 * k3 + k4) / 6
-
-    return r
+def step_rk2(y, h, params, function):
+    k1 = (h / 2) * function(y[0], params)
+    k2 = h * function(y[0] + k1, params)
+    return y[0] + k2
 
 
-
-def rk2(r, h, t_points, params, function):
-
-    for t in range(1, len(t_points)):
-        k1 = (h / 2) * function(r, params)
-        k2 = h * function(r + k1, params)
-        r = r + k2
-    return r
+def step_trapezoid(y, h, params, function):
+    r_b = y[0] + function(y[0], params) * h
+    return y[0] + (function(y[0], params) + function(r_b, params)) * h * 1/2
 
 
-
-
-def trapezoid(r, h, t_points, params, function):
-
-    for t in range(1, len(t_points)):
-        r_b = r + function(r, params) * h
-        r = r + (function(r, params) + function(r_b, params)) * h * 1/2
-
-    return r
-
-
-
-
-def ralston(r, h, t_points, params, function):
+def step_ralston(y, h, params, function):
     a2 = 0.40
 
     b31 = (-2889.0 + 1428.0 * 5 ** (1 / 2)) / 1024.0
@@ -106,108 +75,56 @@ def ralston(r, h, t_points, params, function):
 
     h2 = a2 * h
 
-    for t in range(1, len(t_points)):
-        k1 = function(r, params)
-        k2 = function(r + h2 * k1, params)
-        k3 = function(r + h * (b31 * k1 + b32 * k2), params)
-        k4 = function(r + h * (b41 * k1 + b42 * k2 + b43 * k3), params)
+    k1 = function(y[0], params)
+    k2 = function(y[0] + h2 * k1, params)
+    k3 = function(y[0] + h * (b31 * k1 + b32 * k2), params)
+    k4 = function(y[0] + h * (b41 * k1 + b42 * k2 + b43 * k3), params)
 
-        r = r + h * (g1 * k1 + g2 * k2 + g3 * k3 + g4 * k4)
-
-    return r
+    return y[0] + h * (g1 * k1 + g2 * k2 + g3 * k3 + g4 * k4)
 
 
+def step_euler(y, h, params, function):
+    return y[0] + function(y[0], params) * h
 
 
-def euler(r, h, t_points, params, function):
+def step_adams_multon(y, h, params, function):
+    K4 = function(y[0], params)
+    K3 = function(y[1], params)
+    K2 = function(y[2], params)
+    K1 = function(y[3], params)
 
-    for t in range(1, len(t_points)):
+    y_buff = y[3] + (h / 24) * (55 * K1 - 59 * K2 + 37 * K3 - 9 * K4)
+    f_y_buff = function(y_buff, params)
 
-        r = r + function(r, params) * h
-
-    return r
-
-
-
-
-def Adams_Moulton(r, h, t_points, params, function):
-
-    y_0 = r
-
-    y_1 = rk4(y_0, h, [0, 1, 2, 3], params, function)
-    if (len(t_points) == 1): return y_1
-    y_2 = rk4(y_1, h, [0, 1, 2, 3], params, function)
-    if (len(t_points) == 2): return y_2
-    y_3 = rk4(y_2, h, [0, 1, 2, 3], params, function)
-    if (len(t_points) == 3): return y_3
-
-    f_m2 = function(y_0, params)
-    f_m1 = function(y_1, params)
-    f_0 = function(y_2, params)
-    f_1 = function(y_3, params)
-    y_4 = y_3
-
-    for i in range(3, len(t_points) - 1):
-
-        f_m3, f_m2, f_m1, f_0 = f_m2, f_m1, f_0, f_1
-        y_4 = y_3 + (h / 24) * (55 * f_0 - 59 * f_m1 + 37 * f_m2 - 9 * f_m3)
-        f_1 = function(y_4, params)
-
-        y_4 = y_3 + (h / 24) * (9 * f_1 + 19 * f_0 - 5 * f_m1 + f_m2)
-        f_1 = function(y_4, params)
-        y_3 = y_4
-
-    return y_4
+    return y[3] + (h / 24) * (55 * f_y_buff - 59 * K1 + 37 * K2 - 9 * K3)
 
 
+def step_adams_bashforth(y, h, params, function):
+    K3 = function(y[0], params)
+    K2 = function(y[1], params)
+    K1 = function(y[2], params)
+    return y[2] + h * (23 * K1 - 16 * K2 + 5 * K3)/12
 
 
-def Adams_Bashforth(r, h, t_points, params, function):
-
-    y_0 = r
-    y_1 = rk4(y_0, h, [0, 1, 2], params, function)
-    if (len(t_points) == 1): return y_1
-    y_2 = rk4(y_1, h, [0, 1, 2], params, function)
-    if (len(t_points) == 2): return y_2
-
-    K1 = function(y_1, params)
-    K2 = function(y_0, params)
-    y_3 = function(y_0, params)
-
-    for i in range(2, len(t_points)):
-        K3 = K2
-        K2 = K1
-        K1 = function(y_2, params)
-        y_3 = y_2 + h * (23 * K1 - 16 * K2 + 5 * K3)/12
-        y_2 = y_3
-
-    return y_3
-
-
-
-
-def doDots(r, t_max, h, params, method):
-    t_points = np.arange(0, t_max, h)
-    x_points, y_points  = [], []
-
+def do_dots(r, t_max, h, params, step_method, count_y_to_method):
     points = []
-
     points.append(r)
 
-    for i in range(1, len(t_points)):
-        points.append(method(r, h, t_points[0:i], params, f))
+    for i in range(count_y_to_method -1):
+        p = [points[i]]
+        for j in range(3):
+            p = [step_rk4(p, h, params, f)]
+        points.append(p[0])
 
-        if i % 1000 == 0:
-            print(i)
+    for i in range(0, int(t_max/h) - count_y_to_method):
+        points.append(step_method(points[i:i + count_y_to_method], h, params, f))
 
+    x_points, y_points = [], []
     for p in points:
         x_points.append(p[0])
         y_points.append(p[1])
 
-
     return np.array([x_points, y_points])
-
-
 
 
 def get_balance(alpha, beta, gamma, delta):
@@ -216,15 +133,11 @@ def get_balance(alpha, beta, gamma, delta):
     return balance_x, balance_y
 
 
-
-
 def invariant(points, alpha, beta, gamma, delta):
     x_points = points[0]
     y_points = points[1]
     V = delta * x_points - gamma * np.log(x_points) + beta * y_points - alpha * np.log(y_points)
     return V
-
-
 
 
 def analytical(r, t_points, alpha, beta, gamma, delta):
@@ -238,8 +151,6 @@ def analytical(r, t_points, alpha, beta, gamma, delta):
     By = (-gamma * y + delta * x * y) / w
     return np.array(Ax * np.cos(w * t_points) + Bx * np.sin(w * t_points) + x_balanced), \
            np.array(Ay * np.cos(w * t_points) + By * np.sin(w * t_points) + y_balanced)
-
-
 
 
 def draw_plot(t_points, x_points, y_points, name):
@@ -261,8 +172,6 @@ def draw_plot(t_points, x_points, y_points, name):
     return np.array([x_points, y_points]), t_points
 
 
-
-
 def draw_difference(res1, res2, t_points, name):
     dif = np.fabs(res1 - res2)
     graph_title(name)
@@ -273,16 +182,12 @@ def draw_difference(res1, res2, t_points, name):
     return dif
 
 
-
-
 def draw_invariant(t_points, v_points, method_name):
     plt.grid()
     graph_title(method_name)
     plt.plot(t_points, v_points, '-')
     plt.savefig('./invariant/' + method_name + '.png')
     plt.clf()
-
-
 
 
 def draw_analytical(t_points, x_points, y_points):
@@ -300,8 +205,6 @@ def draw_analytical(t_points, x_points, y_points):
     plt.clf()
 
 
-
-
 def graph_title(name):
     fig, ax = plt.subplots()
     ax.set_title(name +
@@ -309,8 +212,6 @@ def graph_title(name):
                  ' beta = ' + str(ApplicationWindow.beta) +
                  ' gamma = ' + str(ApplicationWindow.gamma) +
                  ' delta = ' + str(ApplicationWindow.delta) + '\n')
-
-
 
 
 class ApplicationWindow(QtWidgets.QMainWindow):
@@ -323,8 +224,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     beta = 0.28
     gamma = 0.7
     delta = 0.3
-
-    methods = [rk4, rk2, euler]
 
     t = 100.0
 
@@ -555,18 +454,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.changeParams()
         self.set_balance()
 
-        methods = [
-            [euler, "euler"],
-            [reverse_euler, "reverse_euler"],
-            [rk2, "rk2"],
-            [reverse_rk2, "reverse_rk2"],
-            [rk4, "rk4"],
-            [ralston, "ralston"],
-            [trapezoid, "trapezoid"],
-            [Adams_Moulton, "Adams_Moulton"],
-            [Adams_Bashforth, "Adams_Bashforth"]
-        ]
-
         t_points = np.arange(0, self.t, self.h)
 
         # Analytical
@@ -577,16 +464,25 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         analytical_res = np.array([analytical_x_res, analytical_y_res])
 
         params = [self.alpha, self.beta, self.gamma, self.delta]
-        for m in methods:
-            print('Start', m[1])
-            r = np.array([self.startX, self.startY])
-            res = doDots(r, self.t, self.h, params, m[0])
-            draw_plot(t_points[0:len(res[1])], res[0], res[1], m[1])
-            dif = draw_difference(res, analytical_res, t_points, m[1])
+        methods = [
+            [step_euler, "euler", 1],
+            [step_adams_multon, "Adams_Moulton", 4],
+            [step_adams_bashforth, "Adams_Bashforth", 3],
+            [step_ralston, "ralston", 1],
+            [step_rk2, "rk2", 1],
+            [step_rk4, "rk4", 1],
+            [step_reverse_euler, "reverse euler", 1],
+            [step_reverse_rk2, "revers rk2", 1],
+            [step_trapezoid, "trapezoid", 1]
+        ]
+
+        for method in methods:
+            res = do_dots(r, self.t, self.h,  params, method[0], method[2])
+            draw_plot(t_points[0:len(res[1])], res[0], res[1], method[1])
+            dif = draw_difference(res, analytical_res, t_points, method[1])
 
             invariantDots = invariant(res, self.alpha, self.beta, self.gamma, self.delta)
-            draw_invariant(t_points, invariantDots, m[1])
-            print('End', m[1])
+            draw_invariant(t_points, invariantDots, method[1])
 
         print("Correct")
 
